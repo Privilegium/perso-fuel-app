@@ -169,8 +169,8 @@ textarea:focus-visible {
 }
 
 .theme-switch {
-  width: 72px;
-  height: 40px;
+  width: 84px;
+  height: 42px;
   display: grid;
   place-items: center;
   padding: 4px;
@@ -195,16 +195,17 @@ textarea:focus-visible {
   width: 100%;
   height: 100%;
   position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
-  justify-content: space-between;
-  padding: 0 5px;
+  justify-items: center;
 }
 
 .theme-switch-sun,
 .theme-switch-moon {
   z-index: 2;
   flex: 0 0 auto;
+  justify-self: center;
 }
 
 .theme-switch-sun {
@@ -216,22 +217,22 @@ textarea:focus-visible {
 }
 
 .theme-switch-thumb {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   position: absolute;
   z-index: 1;
   top: 50%;
-  left: 2px;
+  left: calc(25% - 14px);
   background: var(--surface);
   border: 1px solid var(--surface-border);
   border-radius: 50%;
   box-shadow: 0 2px 5px rgb(16 37 23 / 15%);
   transform: translateY(-50%);
-  transition: background-color 180ms ease, transform 180ms ease;
+  transition: background-color 180ms ease, left 180ms ease;
 }
 
 .theme-switch-dark .theme-switch-thumb {
-  transform: translate(30px, -50%);
+  left: calc(75% - 14px);
 }
 
 .theme-switch-dark .theme-switch-moon {
@@ -287,12 +288,12 @@ textarea:focus-visible {
 }
 
 .overview-main {
-  min-height: 143px;
+  min-height: 151px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(115px, 218px);
   align-items: center;
   gap: 12px;
-  padding: 21px 22px 14px;
+  padding: 22px 22px 22px;
 }
 
 .overview-copy {
@@ -800,17 +801,34 @@ textarea:focus-visible {
   font-size: 11px;
 }
 
+.chart-track {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: stretch;
+}
+
+.chart-y-axis {
+  display: block;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
 .chart-scroll {
+  width: 0;
+  min-width: 0;
+  flex: 1 1 0%;
   overflow-x: auto;
   overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
   scrollbar-color: #cbd8ce transparent;
   scrollbar-width: thin;
 }
 
 .data-chart {
-  width: 100%;
-  min-width: 500px;
   display: block;
+  max-width: none;
   overflow: visible;
 }
 
@@ -822,7 +840,12 @@ textarea:focus-visible {
 .chart-axis {
   fill: var(--text-tertiary);
   font-family: inherit;
-  font-size: 10px;
+  font-size: 12px;
+}
+
+.chart-axis-current {
+  fill: var(--green-deep);
+  font-weight: 750;
 }
 
 .chart-bar {
@@ -851,6 +874,13 @@ textarea:focus-visible {
   margin: 20px 0;
   color: var(--muted);
   font-size: 12px;
+}
+
+.chart-scroll-hint {
+  margin: 2px 0 14px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  text-align: center;
 }
 
 .analytics-note {
@@ -1920,10 +1950,10 @@ textarea:focus-visible {
   }
 
   .overview-main {
-    min-height: 132px;
+    min-height: 140px;
     grid-template-columns: minmax(0, 1fr) minmax(100px, 42%);
     gap: 5px;
-    padding: 18px 17px 12px;
+    padding: 19px 17px 19px;
   }
 
   .overview-total {
@@ -2337,8 +2367,8 @@ textarea:focus-visible {
   }
 
   .overview-main {
-    min-height: 159px;
-    padding: 24px 25px 14px;
+    min-height: 167px;
+    padding: 24px 25px 20px;
   }
 
   .overview-latest {

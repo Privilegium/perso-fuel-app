@@ -41,6 +41,7 @@ type Tab = "fills" | "analytics" | "map";
 type Theme = "light" | "dark";
 type FormMode = "new" | "edit";
 const HISTORY_PAGE_SIZE = 5;
+const ANALYTICS_VISIBLE_MONTHS = 7;
 const ACTIVE_TAB_STORAGE_KEY = "fuel-log-active-tab";
 const ACTIVE_TAB_CHANGE_EVENT = "fuel-log-active-tab-change";
 const THEME_STORAGE_KEY = "fuel-log-theme";
@@ -130,6 +131,33 @@ function monthShort(key: string) {
   return new Intl.DateTimeFormat("uk-UA", { month: "short" }).format(new Date(y, m - 1, 1, 12));
 }
 
+function monthAxisLabel(key: string) {
+  const label = monthShort(key).replace(/\.$/, "");
+  return key.endsWith("-01") ? label + " ’" + key.slice(2, 4) : label;
+}
+
+function useChartViewportWidth(containerRef: { current: HTMLDivElement | null }, itemCount: number) {
+  const [viewportWidth, setViewportWidth] = useState(0);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const measure = () => setViewportWidth(container.clientWidth);
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    measure();
+    return () => observer.disconnect();
+  }, [containerRef]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || viewportWidth === 0) return;
+    container.scrollLeft = container.scrollWidth;
+  }, [itemCount, viewportWidth]);
+
+  return viewportWidth;
+}
+
 function asNumber(value: string) {
   const normalized = value.trim().replace(",", ".");
   if (!normalized) return null;
@@ -179,103 +207,138 @@ function SmallBars({ values }: { values: Array<{ month: string; amount: number }
 }
 
 function MonthlyBarChart({ values }: { values: Array<{ month: string; amount: number }> }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const viewportWidth = useChartViewportWidth(scrollRef, values.length);
   if (!values.length) return <ChartEmpty />;
-  const width = Math.max(500, values.length * 42 + 42);
-  const height = 230;
-  const left = 38;
-  const right = 8;
-  const top = 14;
-  const bottom = 40;
+  const plotViewportWidth = viewportWidth || 320;
+  const height = 250;
+  const axisWidth = 38;
+  const top = 16;
+  const bottom = 42;
+  const visibleSlots = Math.min(ANALYTICS_VISIBLE_MONTHS, values.length);
+  const step = plotViewportWidth / visibleSlots;
+  const width = step * values.length;
   const chartHeight = height - top - bottom;
   const max = Math.max(10, ...values.map((item) => item.amount));
-  const step = (width - left - right) / values.length;
+  const ticks = [0, 0.5, 1];
+  const currentMonth = monthKey(new Date());
   const bars = values.map((item, index) => {
     const barHeight = item.amount === 0 ? 0 : Math.max(2, (item.amount / max) * chartHeight);
     return {
       ...item,
-      x: left + index * step + step * 0.2,
+      x: index * step + step * 0.22,
       y: top + chartHeight - barHeight,
-      width: step * 0.6,
+      width: step * 0.56,
       height: barHeight,
     };
   });
 
   return (
-    <div className="chart-scroll">
-      <svg className="data-chart" viewBox={"0 0 " + width + " " + height} role="img" aria-label="Витрати на пальне за місяцями">
-        {[0, 0.5, 1].map((fraction) => {
+    <div className="chart-track">
+      <svg className="chart-y-axis" width={axisWidth} height={height} viewBox={"0 0 " + axisWidth + " " + height} aria-hidden="true">
+        {ticks.map((fraction) => {
           const y = top + chartHeight * fraction;
           const value = max * (1 - fraction);
           return (
-            <g key={fraction}>
-              <line x1={left} x2={width - right} y1={y} y2={y} className="chart-grid" />
-              <text x={left - 7} y={y + 4} className="chart-axis" textAnchor="end">
+            <text key={fraction} x={axisWidth - 4} y={y + 4} className="chart-axis" textAnchor="end">
                 {integer.format(value)}
-              </text>
-            </g>
+            </text>
           );
         })}
-        {bars.map((bar) => (
-          <g key={bar.month}>
-            <rect
-              x={bar.x}
-              y={bar.y}
-              width={bar.width}
-              height={Math.max(bar.height, 1)}
-              rx="5"
-              className={bar.month === monthKey(new Date()) ? "chart-bar chart-bar-current" : "chart-bar"}
-            >
-              <title>{monthTitle(bar.month, true) + ": " + money.format(bar.amount)}</title>
-            </rect>
-            <text x={bar.x + bar.width / 2} y={height - 13} className="chart-axis" textAnchor="middle">
-              {monthShort(bar.month)}
-            </text>
-          </g>
-        ))}
       </svg>
+      <div className="chart-scroll" ref={scrollRef}>
+        <svg className="data-chart" width={width} height={height} viewBox={"0 0 " + width + " " + height} role="img" aria-label="Витрати на пальне за місяцями">
+          {ticks.map((fraction) => {
+            const y = top + chartHeight * fraction;
+            return <line key={fraction} x1="0" x2={width} y1={y} y2={y} className="chart-grid" />;
+          })}
+          {bars.map((bar) => (
+            <g key={bar.month}>
+              <rect
+                x={bar.x}
+                y={bar.y}
+                width={bar.width}
+                height={Math.max(bar.height, 1)}
+                rx="5"
+                className={bar.month === currentMonth ? "chart-bar chart-bar-current" : "chart-bar"}
+              >
+                <title>{monthTitle(bar.month, true) + ": " + money.format(bar.amount)}</title>
+              </rect>
+              <text
+                x={bar.x + bar.width / 2}
+                y={height - 13}
+                className={bar.month === currentMonth ? "chart-axis chart-axis-current" : "chart-axis"}
+                textAnchor="middle"
+              >
+                {monthAxisLabel(bar.month)}
+              </text>
+            </g>
+          ))}
+        </svg>
+      </div>
     </div>
   );
 }
 
-function MonthlyPriceChart({ values }: { values: Array<{ month: string; price: number }> }) {
+function MonthlyPriceChart({ values }: { values: Array<{ month: string; price: number | null }> }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const viewportWidth = useChartViewportWidth(scrollRef, values.length);
   if (!values.length) return <ChartEmpty />;
-  const width = Math.max(500, values.length * 42 + 42);
-  const height = 210;
-  const left = 42;
-  const right = 12;
+  const prices = values.flatMap((item) => item.price == null ? [] : [item.price]);
+  if (!prices.length) return <ChartEmpty />;
+  const currentMonth = monthKey(new Date());
+  const plotViewportWidth = viewportWidth || 318;
+  const height = 230;
+  const axisWidth = 42;
   const top = 17;
-  const bottom = 37;
+  const bottom = 42;
+  const visibleSlots = Math.min(ANALYTICS_VISIBLE_MONTHS, values.length);
+  const step = plotViewportWidth / visibleSlots;
+  const width = step * values.length;
   const chartHeight = height - top - bottom;
-  const prices = values.map((item) => item.price);
   const min = Math.floor(Math.min(...prices) * 10) / 10;
   const max = Math.ceil(Math.max(...prices) * 10) / 10;
   const range = Math.max(0.1, max - min);
-  const xGap = (width - left - right) / Math.max(1, values.length - 1);
-  const points = values.map((item, index) => ({
+  const points = values.flatMap((item, index) => item.price == null ? [] : [{
     ...item,
-    x: values.length === 1 ? width / 2 : left + index * xGap,
+    x: index * step + step / 2,
     y: top + chartHeight - ((item.price - min) / range) * chartHeight,
-  }));
+    value: item.price,
+  }]);
 
   return (
-    <div className="chart-scroll">
-      <svg className="data-chart" viewBox={"0 0 " + width + " " + height} role="img" aria-label="Середня ціна одного літра за місяцями">
-        <line x1={left} x2={width - right} y1={top + chartHeight} y2={top + chartHeight} className="chart-grid" />
-        <line x1={left} x2={width - right} y1={top} y2={top} className="chart-grid" />
-        <text x={left - 7} y={top + 4} className="chart-axis" textAnchor="end">{max.toFixed(1)}</text>
-        <text x={left - 7} y={top + chartHeight + 4} className="chart-axis" textAnchor="end">{min.toFixed(1)}</text>
-        {points.length > 1 && (
-          <polyline points={points.map((point) => point.x + "," + point.y).join(" ")} className="chart-line" />
-        )}
-        {points.map((point) => (
-          <g key={point.month}>
-            <circle cx={point.x} cy={point.y} r="4" className="chart-point">
-              <title>{monthTitle(point.month, true) + ": " + priceMoney.format(point.price) + "/л"}</title>
-            </circle>
-            <text x={point.x} y={height - 12} className="chart-axis" textAnchor="middle">{monthShort(point.month)}</text>
-          </g>
-        ))}
+    <div className="chart-track">
+      <svg className="chart-y-axis" width={axisWidth} height={height} viewBox={"0 0 " + axisWidth + " " + height} aria-hidden="true">
+        <text x={axisWidth - 4} y={top + 4} className="chart-axis" textAnchor="end">{max.toFixed(1)}</text>
+        <text x={axisWidth - 4} y={top + chartHeight + 4} className="chart-axis" textAnchor="end">{min.toFixed(1)}</text>
       </svg>
+      <div className="chart-scroll" ref={scrollRef}>
+        <svg className="data-chart" width={width} height={height} viewBox={"0 0 " + width + " " + height} role="img" aria-label="Середня ціна одного літра за місяцями">
+          <line x1="0" x2={width} y1={top + chartHeight} y2={top + chartHeight} className="chart-grid" />
+          <line x1="0" x2={width} y1={top} y2={top} className="chart-grid" />
+          {points.length > 1 && (
+            <polyline points={points.map((point) => point.x + "," + point.y).join(" ")} className="chart-line" />
+          )}
+          {points.map((point) => (
+            <g key={point.month}>
+              <circle cx={point.x} cy={point.y} r="5" className="chart-point">
+                <title>{monthTitle(point.month, true) + ": " + priceMoney.format(point.value) + "/л"}</title>
+              </circle>
+            </g>
+          ))}
+          {values.map((item, index) => (
+            <text
+              key={item.month}
+              x={index * step + step / 2}
+              y={height - 13}
+              className={item.month === currentMonth ? "chart-axis chart-axis-current" : "chart-axis"}
+              textAnchor="middle"
+            >
+              {monthAxisLabel(item.month)}
+            </text>
+          ))}
+        </svg>
+      </div>
     </div>
   );
 }
@@ -832,14 +895,28 @@ export default function Home() {
       value.prices.push(entry.unitPrice);
       grouped.set(key, value);
     }
-    return Array.from(grouped.values())
-      .sort((a, b) => a.month.localeCompare(b.month))
-      .map((item) => ({
-        month: item.month,
-        amount: item.amount,
-        price: item.priceTotal / item.prices.length,
-      }));
-  }, [completeEntries]);
+    if (!grouped.size) return [];
+
+    const sortedMonths = Array.from(grouped.keys()).sort();
+    const firstMonth = sortedMonths[0];
+    const lastRecordedMonth = sortedMonths[sortedMonths.length - 1] ?? thisMonth;
+    const lastMonth = lastRecordedMonth > thisMonth ? lastRecordedMonth : thisMonth;
+    const [firstYear, firstNumber] = firstMonth.split("-").map(Number);
+    const cursor = new Date(firstYear, firstNumber - 1, 1, 12);
+    const timeline: Array<{ month: string; amount: number; price: number | null }> = [];
+
+    while (monthKey(cursor) <= lastMonth) {
+      const key = monthKey(cursor);
+      const item = grouped.get(key);
+      timeline.push({
+        month: key,
+        amount: item?.amount ?? 0,
+        price: item?.prices.length ? item.priceTotal / item.prices.length : null,
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    return timeline;
+  }, [completeEntries, thisMonth]);
 
   const totalSpend = completeEntries.reduce((sum, item) => sum + (item.amount ?? 0), 0);
   const totalLiters = completeEntries.reduce(
@@ -1011,6 +1088,7 @@ export default function Home() {
                   <MonthlyPriceChart values={monthlyData} />
                 </section>
 
+                <p className="chart-scroll-hint">Поточний місяць праворуч · гортайте вліво, щоб побачити давніші</p>
                 <p className="analytics-note">
                   Літри обчислено як сума оплати ÷ ціна за літр. Витрату на 100 км не показую, бо в журналі є дозаправки й не для всіх записів вказаний пробіг.
                 </p>
