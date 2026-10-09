@@ -20,8 +20,8 @@
   --lime: #bce5c6;
   --banner: #124e39;
   --banner-copy: #c6d9cd;
-  --header-surface: rgb(255 255 255 / 92%);
-  --nav-surface: rgb(255 255 255 / 96%);
+  --header-surface: #f5f7f5;
+  --nav-surface: #f5f7f5;
   --nav-active-bg: #124e39;
   --nav-active-fg: #f7fff8;
   --fab-bg: #124e39;
@@ -55,8 +55,8 @@
   --lime: #c3eacf;
   --banner: #15452e;
   --banner-copy: #d0e5d5;
-  --header-surface: rgb(20 30 23 / 94%);
-  --nav-surface: rgb(20 30 23 / 97%);
+  --header-surface: #111913;
+  --nav-surface: #111913;
   --nav-active-bg: #1a5c40;
   --nav-active-fg: #f7fff8;
   --fab-bg: #15452e;
@@ -112,17 +112,16 @@ textarea:focus-visible {
 }
 
 .app-header {
-  height: 62px;
+  height: calc(62px + env(safe-area-inset-top, 0px));
   position: sticky;
   z-index: 5;
   top: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 max(22px, calc((100vw - 760px) / 2));
+  padding: env(safe-area-inset-top, 0px) max(22px, calc((100vw - 760px) / 2)) 0;
   background: var(--header-surface);
   border-bottom: 1px solid var(--line);
-  backdrop-filter: blur(14px);
 }
 
 .brand {
@@ -1388,7 +1387,6 @@ textarea:focus-visible {
   background: var(--nav-surface);
   border-top: 1px solid var(--line);
   box-shadow: 0 -7px 22px rgb(23 49 32 / 4%);
-  backdrop-filter: blur(16px);
 }
 
 .nav-item {

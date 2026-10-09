@@ -1032,6 +1032,10 @@ export default function Home() {
   const toggleTheme = useCallback(() => {
     const nextTheme: Theme = theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = nextTheme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute(
+      "content",
+      nextTheme === "dark" ? "#111913" : "#f5f7f5",
+    );
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
     } catch {
