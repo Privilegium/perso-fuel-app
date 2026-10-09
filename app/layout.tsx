@@ -19,7 +19,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="uk">
+    <html lang="uk" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try { if (localStorage.getItem("fuel-log-theme") === "dark") document.documentElement.dataset.theme = "dark"; } catch {}`,
+          }}
+        />
+      </head>
       <body className="antialiased">{children}</body>
     </html>
   );

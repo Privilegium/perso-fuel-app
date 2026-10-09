@@ -3,6 +3,7 @@
 import {
   BarChart3,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
@@ -12,13 +13,14 @@ import {
   LoaderCircle,
   MapPin,
   MapPinned,
+  Moon,
   Pencil,
   Plus,
-  RotateCw,
+  Sun,
   Trash2,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import FuelMap from "@/components/fuel-map";
 
 type FuelEntry = {
@@ -36,8 +38,47 @@ type FuelEntry = {
 };
 
 type Tab = "fills" | "analytics" | "map";
+type Theme = "light" | "dark";
 type FormMode = "new" | "edit";
 const HISTORY_PAGE_SIZE = 5;
+const ACTIVE_TAB_STORAGE_KEY = "fuel-log-active-tab";
+const ACTIVE_TAB_CHANGE_EVENT = "fuel-log-active-tab-change";
+const THEME_STORAGE_KEY = "fuel-log-theme";
+const THEME_CHANGE_EVENT = "fuel-log-theme-change";
+
+function getActiveTabSnapshot(): Tab {
+  if (typeof window === "undefined") return "fills";
+  const stored = window.sessionStorage.getItem(ACTIVE_TAB_STORAGE_KEY);
+  return stored === "analytics" || stored === "map" ? stored : "fills";
+}
+
+function subscribeToActiveTab(onChange: () => void) {
+  const listener = () => onChange();
+  window.addEventListener(ACTIVE_TAB_CHANGE_EVENT, listener);
+  return () => window.removeEventListener(ACTIVE_TAB_CHANGE_EVENT, listener);
+}
+
+function getServerActiveTabSnapshot(): Tab {
+  return "fills";
+}
+
+function getThemeSnapshot(): Theme {
+  if (typeof window === "undefined") return "light";
+  try {
+    return window.localStorage.getItem(THEME_STORAGE_KEY) === "dark" ? "dark" : "light";
+  } catch {
+    return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+  }
+}
+
+function subscribeToTheme(onChange: () => void) {
+  window.addEventListener(THEME_CHANGE_EVENT, onChange);
+  return () => window.removeEventListener(THEME_CHANGE_EVENT, onChange);
+}
+
+function getServerThemeSnapshot(): Theme {
+  return "light";
+}
 
 const money = new Intl.NumberFormat("uk-UA", {
   style: "currency",
@@ -261,9 +302,9 @@ function FuelTable({
       <table className="fuel-table">
         <thead>
           <tr>
-            <th scope="col">Дата</th>
+            <th scope="col">Заправка</th>
             <th scope="col">Ціна / л</th>
-            <th scope="col">Сплачено</th>
+            <th scope="col">Об’єм</th>
             <th scope="col">Пробіг</th>
           </tr>
         </thead>
@@ -289,10 +330,10 @@ function FuelTable({
                     {entry.note ? <span className="row-note">{entry.note}</span> : null}
                     {!complete ? <span className="incomplete-label">Неповний запис</span> : null}
                   </div>
-                  {entry.liters != null ? (
-                    <span className="table-liters" aria-label={"Обсяг " + number.format(entry.liters) + " літра"}>
-                      {number.format(entry.liters)} л
-                    </span>
+                  {entry.amount != null ? (
+                    <strong className="header-amount" aria-label={"Сплачено " + money.format(entry.amount)}>
+                      {money.format(entry.amount)}
+                    </strong>
                   ) : null}
                 </td>
                 <td>
@@ -300,8 +341,8 @@ function FuelTable({
                   {entry.unitPrice == null ? "—" : priceMoney.format(entry.unitPrice)}
                 </td>
                 <td>
-                  <span className="cell-label">Сума</span>
-                  <strong className="table-amount">{entry.amount == null ? "—" : money.format(entry.amount)}</strong>
+                  <span className="cell-label">Об’єм</span>
+                  <span className="table-volume">{entry.liters == null ? "—" : number.format(entry.liters) + " л"}</span>
                 </td>
                 <td>
                   <span className="cell-label">Пробіг</span>
@@ -718,16 +759,30 @@ function BottomNavigation({ active, onSelect }: { active: Tab; onSelect: (tab: T
 
 export default function Home() {
   const [entries, setEntries] = useState<FuelEntry[]>([]);
-  const [tab, setTab] = useState<Tab>("fills");
+  const tab = useSyncExternalStore(subscribeToActiveTab, getActiveTabSnapshot, getServerActiveTabSnapshot);
+  const setTab = useCallback((nextTab: Tab) => {
+    window.sessionStorage.setItem(ACTIVE_TAB_STORAGE_KEY, nextTab);
+    window.dispatchEvent(new Event(ACTIVE_TAB_CHANGE_EVENT));
+  }, []);
+  const theme = useSyncExternalStore(subscribeToTheme, getThemeSnapshot, getServerThemeSnapshot);
   const [visibleEntryCount, setVisibleEntryCount] = useState(HISTORY_PAGE_SIZE);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [dialog, setDialog] = useState<{ mode: FormMode; entry: FuelEntry | null } | null>(null);
   const [toast, setToast] = useState("");
-  const [refreshing, setRefreshing] = useState(false);
 
-  const refresh = useCallback(async (initial = false) => {
-    if (!initial) setRefreshing(true);
+  const toggleTheme = useCallback(() => {
+    const nextTheme: Theme = theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = nextTheme;
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    } catch {
+      // The current page still switches even if the browser blocks persistent storage.
+    }
+    window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
+  }, [theme]);
+
+  const refresh = useCallback(async () => {
     setLoadError("");
     try {
       const response = await fetch("/api/fuel", { cache: "no-store" });
@@ -739,12 +794,11 @@ export default function Home() {
       setLoadError(error instanceof Error ? error.message : "Не вдалося завантажити журнал.");
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => { void refresh(true); }, 0);
+    const timer = window.setTimeout(() => { void refresh(); }, 0);
     return () => window.clearTimeout(timer);
   }, [refresh]);
   useEffect(() => {
@@ -814,8 +868,20 @@ export default function Home() {
           <span className="brand-mark"><Fuel size={19} strokeWidth={2.2} /></span>
           <span>МОЄ ПАЛЬНЕ</span>
         </div>
-        <button className="icon-button refresh-button" type="button" aria-label="Оновити записи з бази сайту" title="Повторно завантажити історію з бази сайту" onClick={() => void refresh()} disabled={refreshing}>
-          <RotateCw size={17} className={refreshing ? "spin" : ""} />
+        <button
+          className={theme === "dark" ? "theme-switch theme-switch-dark" : "theme-switch"}
+          type="button"
+          role="switch"
+          aria-checked={theme === "dark"}
+          aria-label={theme === "dark" ? "Темна тема увімкнена" : "Світла тема увімкнена"}
+          title={theme === "dark" ? "Перемкнути на світлу тему" : "Перемкнути на темну тему"}
+          onClick={toggleTheme}
+        >
+          <span className="theme-switch-track" aria-hidden="true">
+            <Sun className="theme-switch-sun" size={15} />
+            <Moon className="theme-switch-moon" size={15} />
+            <span className="theme-switch-thumb" />
+          </span>
         </button>
       </header>
 
@@ -880,10 +946,10 @@ export default function Home() {
                       <button
                         className="pagination-button"
                         type="button"
-                        onClick={() => setVisibleEntryCount((count) => Math.min(count + HISTORY_PAGE_SIZE, orderedEntries.length))}
+                        onClick={() => setVisibleEntryCount(orderedEntries.length)}
                       >
-                        Показати ще {Math.min(HISTORY_PAGE_SIZE, orderedEntries.length - visibleEntryCount)}
-                        <ChevronRight size={17} />
+                        Показати всі заправки
+                        <ChevronDown size={17} />
                       </button>
                       <span>Показано {Math.min(visibleEntryCount, orderedEntries.length)} із {orderedEntries.length}</span>
                     </div>
