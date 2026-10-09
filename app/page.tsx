@@ -515,7 +515,7 @@ function ConsumptionCard({ recent, all }: { recent: ConsumptionEstimate | null; 
           </div>
           <div className="consumption-details">
             <div>
-              <span>Пальне за 100 км</span>
+              <span>Витрати на 100 км</span>
               <strong>≈ {money.format(recent.eurosPer100Km)}</strong>
             </div>
             {all && all.intervalCount > recent.intervalCount ? (
