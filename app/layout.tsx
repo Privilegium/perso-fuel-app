@@ -23,7 +23,7 @@ export default function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `try { if (localStorage.getItem("fuel-log-theme") === "dark") document.documentElement.dataset.theme = "dark"; } catch {}`,
+            __html: `try { document.documentElement.dataset.theme = localStorage.getItem("fuel-log-theme") === "light" ? "light" : "dark"; } catch { document.documentElement.dataset.theme = "dark"; }`,
           }}
         />
       </head>

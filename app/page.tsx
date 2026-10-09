@@ -78,11 +78,11 @@ function getServerActiveTabSnapshot(): Tab {
 }
 
 function getThemeSnapshot(): Theme {
-  if (typeof window === "undefined") return "light";
+  if (typeof window === "undefined") return "dark";
   try {
-    return window.localStorage.getItem(THEME_STORAGE_KEY) === "dark" ? "dark" : "light";
+    return window.localStorage.getItem(THEME_STORAGE_KEY) === "light" ? "light" : "dark";
   } catch {
-    return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+    return document.documentElement.dataset.theme === "light" ? "light" : "dark";
   }
 }
 
@@ -92,7 +92,7 @@ function subscribeToTheme(onChange: () => void) {
 }
 
 function getServerThemeSnapshot(): Theme {
-  return "light";
+  return "dark";
 }
 
 const money = new Intl.NumberFormat("uk-UA", {
@@ -803,7 +803,6 @@ function FuelDialog({
                     ref={noteInput}
                     id="fill-description"
                     className="note-input description-input"
-                    autoFocus
                     placeholder="Наприклад: планова, поїздка до Ансі"
                     value={note}
                     onChange={(event) => setNote(event.target.value)}
