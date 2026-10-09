@@ -51,9 +51,15 @@ export default function ImportPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ records }),
       });
-      const payload = await response.json();
+      const payload = (await response.json()) as {
+        error?: string;
+        inserted?: number;
+        alreadyImported?: number;
+      };
       if (!response.ok) throw new Error(payload.error || "Імпорт не завершився.");
-      setResult("Імпортовано " + payload.inserted + " записів. Уже наявних: " + payload.alreadyImported + ".");
+      setResult(
+        "Імпортовано " + (payload.inserted ?? 0) + " записів. Уже наявних: " + (payload.alreadyImported ?? 0) + ".",
+      );
     } catch (importError) {
       setError(importError instanceof Error ? importError.message : "Не вдалося імпортувати записи.");
     } finally {

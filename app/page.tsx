@@ -526,7 +526,7 @@ function FuelDialog({
           body: JSON.stringify(body),
         },
       );
-      const result = await response.json();
+      const result = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(result.error || "Не вдалося зберегти запис.");
       onSaved(mode === "new" ? "Заправку збережено" : "Зміни збережено");
     } catch (saveError) {
@@ -541,7 +541,7 @@ function FuelDialog({
     setSaving(true);
     try {
       const response = await fetch("/api/fuel/" + encodeURIComponent(entry.id), { method: "DELETE" });
-      const result = await response.json();
+      const result = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(result.error || "Не вдалося видалити запис.");
       onSaved("Запис видалено");
     } catch (deleteError) {
@@ -764,7 +764,7 @@ function FuelDialog({
           {mode === "edit" ? (
             <>
               <button className="button-secondary" type="button" onClick={onClose} disabled={saving}>Скасувати</button>
-              <button className="button-primary" type="button" onClick={save} disabled={saving}>
+              <button className="button-primary" type="button" onClick={() => void save()} disabled={saving}>
                 {saving ? <LoaderCircle className="spin" size={18} /> : null}Зберегти зміни
               </button>
             </>
@@ -780,7 +780,7 @@ function FuelDialog({
                   {saving ? <LoaderCircle className="spin" size={18} /> : null}Без пробігу
                 </button>
               ) : null}
-              <button className="button-primary" type="button" onClick={save} disabled={saving}>
+              <button className="button-primary" type="button" onClick={() => void save()} disabled={saving}>
                 {saving ? <LoaderCircle className="spin" size={18} /> : null}
                 {odometer.trim() ? "Зберегти запис" : "Зберегти без пробігу"}
               </button>
@@ -849,7 +849,7 @@ export default function Home() {
     setLoadError("");
     try {
       const response = await fetch("/api/fuel", { cache: "no-store" });
-      const result = await response.json();
+      const result = (await response.json()) as { entries?: FuelEntry[]; error?: string };
       if (!response.ok) throw new Error(result.error || "Не вдалося завантажити журнал.");
       setEntries(Array.isArray(result.entries) ? result.entries : []);
       setVisibleEntryCount(HISTORY_PAGE_SIZE);
