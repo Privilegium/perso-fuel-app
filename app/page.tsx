@@ -18,7 +18,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FuelMap from "@/components/fuel-map";
 
 type FuelEntry = {
@@ -275,18 +275,25 @@ function FuelTable({
                 <td className="fill-date-cell">
                   <div className="date-cell-copy">
                     <span className="cell-label">Дата</span>
-                    <time dateTime={entry.fillDate ?? undefined}>{dateForDisplay(entry.fillDate)}</time>
+                    <span className="date-line">
+                      <time dateTime={entry.fillDate ?? undefined}>{dateForDisplay(entry.fillDate)}</time>
+                      <button
+                        className="row-edit"
+                        type="button"
+                        aria-label={"Редагувати запис за " + dateForDisplay(entry.fillDate)}
+                        onClick={() => onEdit(entry)}
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    </span>
                     {entry.note ? <span className="row-note">{entry.note}</span> : null}
                     {!complete ? <span className="incomplete-label">Неповний запис</span> : null}
                   </div>
-                  <button
-                    className="row-edit"
-                    type="button"
-                    aria-label={"Редагувати запис за " + dateForDisplay(entry.fillDate)}
-                    onClick={() => onEdit(entry)}
-                  >
-                    <Pencil size={15} />
-                  </button>
+                  {entry.liters != null ? (
+                    <span className="table-liters" aria-label={"Обсяг " + number.format(entry.liters) + " літра"}>
+                      {number.format(entry.liters)} л
+                    </span>
+                  ) : null}
                 </td>
                 <td>
                   <span className="cell-label">Ціна / л</span>
@@ -295,7 +302,6 @@ function FuelTable({
                 <td>
                   <span className="cell-label">Сума</span>
                   <strong className="table-amount">{entry.amount == null ? "—" : money.format(entry.amount)}</strong>
-                  {entry.liters != null ? <span className="table-subvalue">{number.format(entry.liters)} л</span> : null}
                 </td>
                 <td>
                   <span className="cell-label">Пробіг</span>
@@ -330,6 +336,7 @@ function FuelDialog({
   const [note, setNote] = useState(entry?.note ?? "");
   const [fillDate, setFillDate] = useState(entry?.fillDate ?? dateKey());
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const noteInput = useRef<HTMLTextAreaElement>(null);
   const [location, setLocation] = useState<{ latitude: number; longitude: number; accuracy: number } | null>(
     entry?.latitude != null && entry.longitude != null
       ? { latitude: entry.latitude, longitude: entry.longitude, accuracy: entry.locationAccuracy ?? 0 }
@@ -494,6 +501,7 @@ function FuelDialog({
                 <label className="field-label" htmlFor="fill-description">
                   Що це була за заправка?
                   <textarea
+                    ref={noteInput}
                     id="fill-description"
                     className="note-input description-input"
                     autoFocus
@@ -508,14 +516,19 @@ function FuelDialog({
                   <span>Швидкий вибір</span>
                   {[
                     { label: "Планова", value: "Планова" },
-                    { label: "Поїздка", value: "Поїздка" },
-                    { label: "Дозаправка", value: "Дозаправка" },
+                    { label: "Поїздка до", value: "Поїздка до " },
                   ].map((item) => (
                     <button
                       key={item.value}
                       type="button"
-                      className={note.trim() === item.value ? "quick-description-option selected" : "quick-description-option"}
-                      onClick={() => setNote(item.value)}
+                      className={note.trim() === item.value.trim() ? "quick-description-option selected" : "quick-description-option"}
+                      onClick={() => {
+                        setNote(item.value);
+                        requestAnimationFrame(() => {
+                          noteInput.current?.focus();
+                          noteInput.current?.setSelectionRange(item.value.length, item.value.length);
+                        });
+                      }}
                     >
                       {item.label}
                     </button>

@@ -403,7 +403,31 @@ textarea:focus-visible {
   flex-direction: column;
   align-items: flex-start;
   gap: 3px;
-  padding-right: 18px;
+  padding-right: 62px;
+}
+
+.date-line {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.table-liters {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 8px;
+  color: var(--green-deep);
+  background: #eff5f0;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+  transform: translateY(-50%);
 }
 
 .date-cell-copy time {
@@ -477,11 +501,9 @@ textarea:focus-visible {
 }
 
 .row-edit {
-  width: 25px;
-  height: 25px;
-  position: absolute;
-  top: 50%;
-  right: 8px;
+  width: 21px;
+  height: 21px;
+  flex: 0 0 auto;
   display: grid;
   place-items: center;
   padding: 0;
@@ -491,7 +513,6 @@ textarea:focus-visible {
   border-radius: 7px;
   cursor: pointer;
   opacity: 0.7;
-  transform: translateY(-50%);
 }
 
 .row-edit:hover {
@@ -1846,7 +1867,7 @@ textarea:focus-visible {
   .date-cell-copy {
     width: 100%;
     gap: 4px;
-    padding-right: 28px;
+    padding-right: 62px;
   }
 
   .date-cell-copy time {
@@ -1867,9 +1888,8 @@ textarea:focus-visible {
   }
 
   .row-edit {
-    width: 29px;
-    height: 29px;
-    right: 0;
+    width: 20px;
+    height: 20px;
     opacity: 0.82;
   }
 
