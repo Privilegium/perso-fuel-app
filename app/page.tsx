@@ -1036,6 +1036,9 @@ export default function Home() {
       "content",
       nextTheme === "dark" ? "#111913" : "#f5f7f5",
     );
+    document
+      .querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')
+      ?.setAttribute("content", nextTheme === "dark" ? "black-translucent" : "default");
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
     } catch {
