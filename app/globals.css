@@ -1036,7 +1036,9 @@ textarea:focus-visible {
   stroke-width: 2;
 }
 
+.chart-hit-area:focus,
 .chart-hit-area:focus-visible {
+  outline: none;
   fill: transparent;
   stroke: var(--focus-ring);
   stroke-width: 3;

@@ -150,6 +150,15 @@ function monthAxisLabel(key: string) {
   return key.endsWith("-01") ? label + " ’" + key.slice(2, 4) : label;
 }
 
+function countNoun(count: number, one: string, few: string, many: string) {
+  const lastTwo = count % 100;
+  const last = count % 10;
+  if (lastTwo >= 11 && lastTwo <= 14) return many;
+  if (last === 1) return one;
+  if (last >= 2 && last <= 4) return few;
+  return many;
+}
+
 function useChartViewportWidth(containerRef: { current: HTMLDivElement | null }, itemCount: number) {
   const [viewportWidth, setViewportWidth] = useState(0);
 
@@ -167,7 +176,7 @@ function useChartViewportWidth(containerRef: { current: HTMLDivElement | null },
     const container = containerRef.current;
     if (!container || viewportWidth === 0) return;
     container.scrollLeft = container.scrollWidth;
-  }, [itemCount, viewportWidth]);
+  }, [containerRef, itemCount, viewportWidth]);
 
   return viewportWidth;
 }
@@ -463,7 +472,7 @@ function MonthDetailCard({ month }: { month: MonthlyMetric }) {
         </div>
       </div>
       <p className="month-detail-meta">
-        {month.fillCount} {month.fillCount === 1 ? "заправка" : "заправок"}
+        {month.fillCount} {countNoun(month.fillCount, "заправка", "заправки", "заправок")}
         <span aria-hidden="true"> · </span>
         {number.format(month.liters)} л придбано
       </p>
@@ -498,7 +507,11 @@ function ConsumptionCard({ recent, all }: { recent: ConsumptionEstimate | null; 
         <>
           <div className="consumption-main">
             <strong>≈ {number.format(recent.litersPer100Km)} <small>л / 100 км</small></strong>
-            <span>За останні {recent.intervalCount} {recent.intervalCount === 1 ? "інтервал" : "інтервалів"} пробігу</span>
+            <span>
+              {recent.intervalCount === 1
+                ? "За останній інтервал пробігу"
+                : `За останні ${recent.intervalCount} ${countNoun(recent.intervalCount, "інтервал", "інтервали", "інтервалів")} пробігу`}
+            </span>
           </div>
           <div className="consumption-details">
             <div>
@@ -507,7 +520,7 @@ function ConsumptionCard({ recent, all }: { recent: ConsumptionEstimate | null; 
             </div>
             {all && all.intervalCount > recent.intervalCount ? (
               <div>
-                <span>Уся історія · {all.intervalCount} інтервалів</span>
+                <span>Уся історія · {all.intervalCount} {countNoun(all.intervalCount, "інтервал", "інтервали", "інтервалів")}</span>
                 <strong>≈ {number.format(all.litersPer100Km)} л / 100 км</strong>
               </div>
             ) : null}
