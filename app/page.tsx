@@ -15,6 +15,7 @@ import {
   Pencil,
   Plus,
   RotateCw,
+  Trash2,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -36,6 +37,7 @@ type FuelEntry = {
 
 type Tab = "fills" | "analytics" | "map";
 type FormMode = "new" | "edit";
+const HISTORY_PAGE_SIZE = 5;
 
 const money = new Intl.NumberFormat("uk-UA", {
   style: "currency",
@@ -327,6 +329,7 @@ function FuelDialog({
   const [odometer, setOdometer] = useState(entry?.odometer?.toString() ?? "");
   const [note, setNote] = useState(entry?.note ?? "");
   const [fillDate, setFillDate] = useState(entry?.fillDate ?? dateKey());
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [location, setLocation] = useState<{ latitude: number; longitude: number; accuracy: number } | null>(
     entry?.latitude != null && entry.longitude != null
       ? { latitude: entry.latitude, longitude: entry.longitude, accuracy: entry.locationAccuracy ?? 0 }
@@ -421,22 +424,45 @@ function FuelDialog({
     }
   };
 
+  const removeEntry = async () => {
+    if (mode !== "edit" || !entry) return;
+    setError("");
+    setSaving(true);
+    try {
+      const response = await fetch("/api/fuel/" + encodeURIComponent(entry.id), { method: "DELETE" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Не вдалося видалити запис.");
+      onSaved("Запис видалено");
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Не вдалося видалити запис.");
+      setSaving(false);
+    }
+  };
+
   const next = () => {
     setError("");
     if (step === 1) {
-      if (!price || price <= 0) {
-        setError("Введіть ціну одного літра.");
+      if (!note.trim()) {
+        setError("Додайте короткий опис або виберіть один із варіантів.");
         return;
       }
       setStep(2);
       return;
     }
     if (step === 2) {
+      if (!price || price <= 0) {
+        setError("Введіть ціну одного літра.");
+        return;
+      }
+      setStep(3);
+      return;
+    }
+    if (step === 3) {
       if (!paid || paid <= 0) {
         setError("Введіть суму, яку ви сплатили.");
         return;
       }
-      setStep(3);
+      setStep(4);
     }
   };
 
@@ -456,14 +482,48 @@ function FuelDialog({
 
         {mode === "new" ? (
           <>
-            <div className="step-progress" aria-label={"Крок " + step + " з 3"}>
-              {[1, 2, 3].map((item) => <span key={item} className={item <= step ? "step-active" : ""} />)}
+            <div className="step-progress" aria-label={"Крок " + step + " з 4"}>
+              {[1, 2, 3, 4].map((item) => <span key={item} className={item <= step ? "step-active" : ""} />)}
             </div>
             <p className="step-caption">
-              КРОК {step} З 3 <span>{step === 1 ? "Ціна за літр" : step === 2 ? "Оплата" : "Пробіг і місце"}</span>
+              КРОК {step} З 4 <span>{step === 1 ? "Опис" : step === 2 ? "Ціна за літр" : step === 3 ? "Оплата" : "Пробіг і місце"}</span>
               {step > 1 ? <button type="button" onClick={() => setStep((current) => current - 1)}><ChevronLeft size={13} />Назад</button> : null}
             </p>
             {step === 1 && (
+              <div className="description-step">
+                <label className="field-label" htmlFor="fill-description">
+                  Що це була за заправка?
+                  <textarea
+                    id="fill-description"
+                    className="note-input description-input"
+                    autoFocus
+                    placeholder="Наприклад: планова, поїздка до Ансі"
+                    value={note}
+                    onChange={(event) => setNote(event.target.value)}
+                    maxLength={120}
+                  />
+                  <small>Короткий опис залишиться в історії поруч із датою.</small>
+                </label>
+                <div className="quick-description" role="group" aria-label="Швидкий опис">
+                  <span>Швидкий вибір</span>
+                  {[
+                    { label: "Планова", value: "Планова" },
+                    { label: "Поїздка", value: "Поїздка" },
+                    { label: "Дозаправка", value: "Дозаправка" },
+                  ].map((item) => (
+                    <button
+                      key={item.value}
+                      type="button"
+                      className={note.trim() === item.value ? "quick-description-option selected" : "quick-description-option"}
+                      onClick={() => setNote(item.value)}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {step === 2 && (
               <label className="field-label" htmlFor="unit-price">
                 Ціна одного літра
                 <span className="input-shell">
@@ -484,7 +544,7 @@ function FuelDialog({
                 {lastPrice != null ? <small>Остання записана ціна — {priceMoney.format(lastPrice)} за літр</small> : null}
               </label>
             )}
-            {step === 2 && (
+            {step === 3 && (
               <label className="field-label" htmlFor="amount">
                 Скільки ви сплатили
                 <span className="input-shell">
@@ -504,7 +564,7 @@ function FuelDialog({
                 {estimatedLiters != null ? <small>Приблизно {number.format(estimatedLiters)} л</small> : null}
               </label>
             )}
-            {step === 3 && (
+            {step === 4 && (
               <div className="final-step-fields">
                 <div className="automatic-date">
                   <CalendarIcon />
@@ -537,23 +597,6 @@ function FuelDialog({
                   </span>
                   {!location && !locating ? <ChevronRight size={17} /> : null}
                 </button>
-                <button
-                  className="note-toggle"
-                  type="button"
-                  onClick={() => setNote((value) => value ? "" : " ")}
-                >
-                  {note.trim() ? "Приховати нотатку" : "Додати нотатку"}
-                </button>
-                {note !== "" && (
-                  <textarea
-                    className="note-input"
-                    aria-label="Нотатка"
-                    placeholder="Наприклад, заправка перед поїздкою"
-                    value={note}
-                    onChange={(event) => setNote(event.target.value)}
-                    maxLength={500}
-                  />
-                )}
               </div>
             )}
           </>
@@ -576,11 +619,27 @@ function FuelDialog({
               <span className="input-shell"><input id="edit-odometer" type="number" inputMode="numeric" min="0" step="1" value={odometer} onChange={(event) => setOdometer(event.target.value)} /><span className="input-suffix">км</span></span>
             </label>
             <label className="field-label" htmlFor="edit-note">
-              Нотатка <span className="optional-word">необов’язково</span>
+              Опис заправки
               <textarea id="edit-note" className="note-input" placeholder="Додати нотатку" value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} />
             </label>
+            <button className="delete-entry-trigger" type="button" onClick={() => setConfirmDelete(true)} disabled={saving}>
+              <Trash2 size={16} />Видалити цей запис
+            </button>
           </div>
         )}
+
+        {mode === "edit" && confirmDelete ? (
+          <div className="delete-confirm" role="alert">
+            <strong>Видалити запис остаточно?</strong>
+            <p>Запис буде видалено з бази сайту. Цю дію не можна скасувати.</p>
+            <div>
+              <button className="button-secondary" type="button" onClick={() => setConfirmDelete(false)} disabled={saving}>Залишити</button>
+              <button className="button-danger" type="button" onClick={() => void removeEntry()} disabled={saving}>
+                {saving ? <LoaderCircle className="spin" size={17} /> : <Trash2 size={16} />}Видалити остаточно
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {error ? <p className="form-error" role="alert"><CircleAlert size={16} />{error}</p> : null}
 
@@ -592,7 +651,7 @@ function FuelDialog({
                 {saving ? <LoaderCircle className="spin" size={18} /> : null}Зберегти зміни
               </button>
             </>
-          ) : step < 3 ? (
+          ) : step < 4 ? (
             <>
               <span />
               <button className="button-primary" type="button" onClick={next}>Далі<ChevronRight size={17} /></button>
@@ -647,6 +706,7 @@ function BottomNavigation({ active, onSelect }: { active: Tab; onSelect: (tab: T
 export default function Home() {
   const [entries, setEntries] = useState<FuelEntry[]>([]);
   const [tab, setTab] = useState<Tab>("fills");
+  const [visibleEntryCount, setVisibleEntryCount] = useState(HISTORY_PAGE_SIZE);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [dialog, setDialog] = useState<{ mode: FormMode; entry: FuelEntry | null } | null>(null);
@@ -661,6 +721,7 @@ export default function Home() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Не вдалося завантажити журнал.");
       setEntries(Array.isArray(result.entries) ? result.entries : []);
+      setVisibleEntryCount(HISTORY_PAGE_SIZE);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Не вдалося завантажити журнал.");
     } finally {
@@ -740,7 +801,7 @@ export default function Home() {
           <span className="brand-mark"><Fuel size={19} strokeWidth={2.2} /></span>
           <span>МОЄ ПАЛЬНЕ</span>
         </div>
-        <button className="icon-button refresh-button" type="button" aria-label="Оновити записи" onClick={() => void refresh()} disabled={refreshing}>
+        <button className="icon-button refresh-button" type="button" aria-label="Оновити записи з бази сайту" title="Повторно завантажити історію з бази сайту" onClick={() => void refresh()} disabled={refreshing}>
           <RotateCw size={17} className={refreshing ? "spin" : ""} />
         </button>
       </header>
@@ -753,7 +814,7 @@ export default function Home() {
                 <p className="eyebrow">ВАШ ЖУРНАЛ</p>
                 <h1>Заправки</h1>
               </div>
-              <span className="record-count">{completeEntries.length} записів</span>
+              <span className="record-count">{entries.length} записів</span>
             </div>
 
             <section className="overview-band" aria-label="Поточні підсумки">
@@ -781,7 +842,7 @@ export default function Home() {
               <div className="section-heading">
                 <div>
                   <h2>Історія</h2>
-                  <p>{entries.length} записів · нові спочатку</p>
+                  <p>{entries.length} записів · показано {Math.min(visibleEntryCount, entries.length)}</p>
                 </div>
                 <button className="text-button" type="button" onClick={() => setTab("analytics")}>
                   Статистика <ChevronRight size={15} />
@@ -796,7 +857,25 @@ export default function Home() {
               ) : loading ? (
                 <div className="loading-state"><LoaderCircle className="spin" size={20} />Завантажую записи…</div>
               ) : (
-                <FuelTable entries={orderedEntries} onEdit={(entry) => setDialog({ mode: "edit", entry })} />
+                <>
+                  <FuelTable
+                    entries={orderedEntries.slice(0, visibleEntryCount)}
+                    onEdit={(entry) => setDialog({ mode: "edit", entry })}
+                  />
+                  {visibleEntryCount < orderedEntries.length ? (
+                    <div className="history-pagination">
+                      <button
+                        className="pagination-button"
+                        type="button"
+                        onClick={() => setVisibleEntryCount((count) => Math.min(count + HISTORY_PAGE_SIZE, orderedEntries.length))}
+                      >
+                        Показати ще {Math.min(HISTORY_PAGE_SIZE, orderedEntries.length - visibleEntryCount)}
+                        <ChevronRight size={17} />
+                      </button>
+                      <span>Показано {Math.min(visibleEntryCount, orderedEntries.length)} із {orderedEntries.length}</span>
+                    </div>
+                  ) : null}
+                </>
               )}
             </section>
           </>

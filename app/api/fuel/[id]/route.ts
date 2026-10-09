@@ -2,6 +2,27 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { fuelEntries } from "@/db/schema";
 
+export async function DELETE(
+  _request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await context.params;
+    const [deleted] = await getDb()
+      .delete(fuelEntries)
+      .where(eq(fuelEntries.id, id))
+      .returning({ id: fuelEntries.id });
+    if (!deleted) return Response.json({ error: "Заправку не знайдено." }, { status: 404 });
+    return Response.json({ deleted: true, id: deleted.id });
+  } catch (error) {
+    console.error("fuel delete error", error);
+    return Response.json(
+      { error: "Не вдалося видалити запис. Спробуйте ще раз." },
+      { status: 503 },
+    );
+  }
+}
+
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
