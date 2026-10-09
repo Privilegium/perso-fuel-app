@@ -776,6 +776,192 @@ textarea:focus-visible {
   font-weight: 550;
 }
 
+.month-detail-card,
+.consumption-card {
+  border: 1px solid var(--surface-border);
+  border-radius: 17px;
+}
+
+.month-detail-card {
+  margin: 0 0 14px;
+  padding: 16px;
+  background: var(--surface);
+}
+
+.month-detail-heading,
+.consumption-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.month-detail-heading .eyebrow,
+.consumption-heading .eyebrow {
+  margin: 0 0 4px;
+}
+
+.month-detail-heading h2,
+.consumption-heading h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 720;
+  letter-spacing: -0.035em;
+}
+
+.month-spend {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.month-spend span,
+.month-price-stat span,
+.consumption-details span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.month-spend strong {
+  color: var(--green-deep);
+  font-size: 21px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 760;
+  letter-spacing: -0.04em;
+}
+
+.month-detail-meta {
+  margin: 7px 0 13px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.month-price-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.month-price-grid.month-price-single {
+  grid-template-columns: minmax(120px, 1fr);
+}
+
+.month-price-stat {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 4px;
+  padding: 10px 9px;
+  background: var(--surface-soft);
+  border-radius: 11px;
+}
+
+.month-price-stat span {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.month-price-stat strong {
+  color: var(--text-secondary);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 680;
+}
+
+.month-price-stat small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.month-no-prices {
+  margin: 0;
+  padding: 12px;
+  color: var(--muted);
+  background: var(--surface-soft);
+  border-radius: 11px;
+  font-size: 13px;
+}
+
+.consumption-card {
+  margin-top: 18px;
+  padding: 18px;
+  background: var(--green-soft);
+  border-color: color-mix(in srgb, var(--green) 18%, var(--surface-border));
+}
+
+.consumption-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: var(--green-deep);
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 50%;
+}
+
+.consumption-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 16px 0 13px;
+}
+
+.consumption-main > strong {
+  color: var(--green-deep);
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 780;
+  letter-spacing: -0.055em;
+  line-height: 1.1;
+}
+
+.consumption-main > strong small {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+
+.consumption-main > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.consumption-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.consumption-details > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 11px;
+}
+
+.consumption-details strong {
+  color: var(--text-secondary);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.consumption-explanation {
+  margin: 13px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .chart-section {
   padding: 21px 0 16px;
   border-top: 1px solid var(--line);
@@ -837,6 +1023,25 @@ textarea:focus-visible {
   stroke-width: 1;
 }
 
+.chart-selection-band {
+  fill: var(--green-soft);
+  opacity: 0.74;
+  pointer-events: none;
+}
+
+.chart-hit-area {
+  cursor: pointer;
+  pointer-events: all;
+  stroke: transparent;
+  stroke-width: 2;
+}
+
+.chart-hit-area:focus-visible {
+  fill: transparent;
+  stroke: var(--focus-ring);
+  stroke-width: 3;
+}
+
 .chart-axis {
   fill: var(--text-tertiary);
   font-family: inherit;
@@ -846,6 +1051,10 @@ textarea:focus-visible {
 .chart-axis-current {
   fill: var(--green-deep);
   font-weight: 750;
+}
+
+.chart-axis-selected {
+  font-weight: 850;
 }
 
 .chart-bar {

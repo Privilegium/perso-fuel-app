@@ -40,6 +40,20 @@ type FuelEntry = {
 type Tab = "fills" | "analytics" | "map";
 type Theme = "light" | "dark";
 type FormMode = "new" | "edit";
+type MonthlyMetric = {
+  month: string;
+  amount: number;
+  price: number | null;
+  priceMin: number | null;
+  priceMax: number | null;
+  fillCount: number;
+  liters: number;
+};
+type ConsumptionEstimate = {
+  litersPer100Km: number;
+  eurosPer100Km: number;
+  intervalCount: number;
+};
 const HISTORY_PAGE_SIZE = 5;
 const ANALYTICS_VISIBLE_MONTHS = 7;
 const ACTIVE_TAB_STORAGE_KEY = "fuel-log-active-tab";
@@ -206,7 +220,15 @@ function SmallBars({ values }: { values: Array<{ month: string; amount: number }
   );
 }
 
-function MonthlyBarChart({ values }: { values: Array<{ month: string; amount: number }> }) {
+function MonthlyBarChart({
+  values,
+  selectedMonth,
+  onSelectMonth,
+}: {
+  values: MonthlyMetric[];
+  selectedMonth: string | null;
+  onSelectMonth: (month: string) => void;
+}) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const viewportWidth = useChartViewportWidth(scrollRef, values.length);
   if (!values.length) return <ChartEmpty />;
@@ -247,7 +269,19 @@ function MonthlyBarChart({ values }: { values: Array<{ month: string; amount: nu
         })}
       </svg>
       <div className="chart-scroll" ref={scrollRef}>
-        <svg className="data-chart" width={width} height={height} viewBox={"0 0 " + width + " " + height} role="img" aria-label="Витрати на пальне за місяцями">
+        <svg className="data-chart" width={width} height={height} viewBox={"0 0 " + width + " " + height} role="group" aria-label="Витрати на пальне за місяцями. Натисніть місяць, щоб обрати його.">
+          {values.map((item, index) => item.month === selectedMonth ? (
+            <rect
+              key={item.month}
+              x={index * step + 4}
+              y={top - 7}
+              width={Math.max(1, step - 8)}
+              height={height - top + 1}
+              rx="8"
+              className="chart-selection-band"
+              aria-hidden="true"
+            />
+          ) : null)}
           {ticks.map((fraction) => {
             const y = top + chartHeight * fraction;
             return <line key={fraction} x1="0" x2={width} y1={y} y2={y} className="chart-grid" />;
@@ -267,12 +301,34 @@ function MonthlyBarChart({ values }: { values: Array<{ month: string; amount: nu
               <text
                 x={bar.x + bar.width / 2}
                 y={height - 13}
-                className={bar.month === currentMonth ? "chart-axis chart-axis-current" : "chart-axis"}
+                className={`${bar.month === currentMonth ? "chart-axis chart-axis-current" : "chart-axis"}${bar.month === selectedMonth ? " chart-axis-selected" : ""}`}
                 textAnchor="middle"
               >
                 {monthAxisLabel(bar.month)}
               </text>
             </g>
+          ))}
+          {values.map((item, index) => (
+            <rect
+              key={item.month}
+              x={index * step}
+              y="0"
+              width={step}
+              height={height}
+              fill="transparent"
+              className="chart-hit-area"
+              role="button"
+              tabIndex={0}
+              aria-pressed={item.month === selectedMonth}
+              aria-label={`${monthTitle(item.month, true)}: витрати ${money.format(item.amount)}. Обрати місяць.`}
+              onClick={() => onSelectMonth(item.month)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelectMonth(item.month);
+                }
+              }}
+            />
           ))}
         </svg>
       </div>
@@ -280,7 +336,15 @@ function MonthlyBarChart({ values }: { values: Array<{ month: string; amount: nu
   );
 }
 
-function MonthlyPriceChart({ values }: { values: Array<{ month: string; price: number | null }> }) {
+function MonthlyPriceChart({
+  values,
+  selectedMonth,
+  onSelectMonth,
+}: {
+  values: MonthlyMetric[];
+  selectedMonth: string | null;
+  onSelectMonth: (month: string) => void;
+}) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const viewportWidth = useChartViewportWidth(scrollRef, values.length);
   if (!values.length) return <ChartEmpty />;
@@ -313,7 +377,19 @@ function MonthlyPriceChart({ values }: { values: Array<{ month: string; price: n
         <text x={axisWidth - 4} y={top + chartHeight + 4} className="chart-axis" textAnchor="end">{min.toFixed(1)}</text>
       </svg>
       <div className="chart-scroll" ref={scrollRef}>
-        <svg className="data-chart" width={width} height={height} viewBox={"0 0 " + width + " " + height} role="img" aria-label="Середня ціна одного літра за місяцями">
+        <svg className="data-chart" width={width} height={height} viewBox={"0 0 " + width + " " + height} role="group" aria-label="Середня ціна одного літра за місяцями. Натисніть місяць, щоб обрати його.">
+          {values.map((item, index) => item.month === selectedMonth ? (
+            <rect
+              key={item.month}
+              x={index * step + 4}
+              y={top - 7}
+              width={Math.max(1, step - 8)}
+              height={height - top + 1}
+              rx="8"
+              className="chart-selection-band"
+              aria-hidden="true"
+            />
+          ) : null)}
           <line x1="0" x2={width} y1={top + chartHeight} y2={top + chartHeight} className="chart-grid" />
           <line x1="0" x2={width} y1={top} y2={top} className="chart-grid" />
           {points.length > 1 && (
@@ -331,15 +407,121 @@ function MonthlyPriceChart({ values }: { values: Array<{ month: string; price: n
               key={item.month}
               x={index * step + step / 2}
               y={height - 13}
-              className={item.month === currentMonth ? "chart-axis chart-axis-current" : "chart-axis"}
+              className={`${item.month === currentMonth ? "chart-axis chart-axis-current" : "chart-axis"}${item.month === selectedMonth ? " chart-axis-selected" : ""}`}
               textAnchor="middle"
             >
               {monthAxisLabel(item.month)}
             </text>
           ))}
+          {values.map((item, index) => (
+            <rect
+              key={item.month}
+              x={index * step}
+              y="0"
+              width={step}
+              height={height}
+              fill="transparent"
+              className="chart-hit-area"
+              role="button"
+              tabIndex={0}
+              aria-pressed={item.month === selectedMonth}
+              aria-label={`${monthTitle(item.month, true)}: ${item.price == null ? "немає даних про ціну" : "середня ціна " + priceMoney.format(item.price) + " за літр"}. Обрати місяць.`}
+              onClick={() => onSelectMonth(item.month)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelectMonth(item.month);
+                }
+              }}
+            />
+          ))}
         </svg>
       </div>
     </div>
+  );
+}
+
+function MonthDetailCard({ month }: { month: MonthlyMetric }) {
+  const prices = month.fillCount > 1
+    ? [
+      { label: "Найнижча", value: month.priceMin },
+      { label: "Середня", value: month.price },
+      { label: "Найвища", value: month.priceMax },
+    ]
+    : [{ label: "Ціна за літр", value: month.price }];
+
+  return (
+    <section className="month-detail-card" aria-live="polite" aria-labelledby="selected-month-title">
+      <div className="month-detail-heading">
+        <div>
+          <p className="eyebrow">ОБРАНИЙ МІСЯЦЬ</p>
+          <h2 id="selected-month-title">{monthTitle(month.month, true)}</h2>
+        </div>
+        <div className="month-spend">
+          <span>Витрати</span>
+          <strong>{money.format(month.amount)}</strong>
+        </div>
+      </div>
+      <p className="month-detail-meta">
+        {month.fillCount} {month.fillCount === 1 ? "заправка" : "заправок"}
+        <span aria-hidden="true"> · </span>
+        {number.format(month.liters)} л придбано
+      </p>
+      {month.fillCount > 0 ? (
+        <div className={month.fillCount > 1 ? "month-price-grid" : "month-price-grid month-price-single"}>
+          {prices.map((item) => (
+            <div className="month-price-stat" key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value == null ? "—" : priceMoney.format(item.value)}</strong>
+              <small>/ л</small>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="month-no-prices">За цей місяць заправок немає.</p>
+      )}
+    </section>
+  );
+}
+
+function ConsumptionCard({ recent, all }: { recent: ConsumptionEstimate | null; all: ConsumptionEstimate | null }) {
+  return (
+    <section className="consumption-card" aria-labelledby="consumption-title">
+      <div className="consumption-heading">
+        <div>
+          <p className="eyebrow">ОРІЄНТИР, НЕ ТОЧНИЙ ЗАМІР</p>
+          <h2 id="consumption-title">Витрата пального</h2>
+        </div>
+        <span className="consumption-icon"><Gauge size={20} /></span>
+      </div>
+      {recent ? (
+        <>
+          <div className="consumption-main">
+            <strong>≈ {number.format(recent.litersPer100Km)} <small>л / 100 км</small></strong>
+            <span>За останні {recent.intervalCount} {recent.intervalCount === 1 ? "інтервал" : "інтервалів"} пробігу</span>
+          </div>
+          <div className="consumption-details">
+            <div>
+              <span>Пальне за 100 км</span>
+              <strong>≈ {money.format(recent.eurosPer100Km)}</strong>
+            </div>
+            {all && all.intervalCount > recent.intervalCount ? (
+              <div>
+                <span>Уся історія · {all.intervalCount} інтервалів</span>
+                <strong>≈ {number.format(all.litersPer100Km)} л / 100 км</strong>
+              </div>
+            ) : null}
+          </div>
+          <p className="consumption-explanation">
+            Формула: літри заправок між двома записами пробігу ÷ пройдені кілометри × 100. Якщо рівень бака на початку й наприкінці різний, оцінка може помітно змінитися.
+          </p>
+        </>
+      ) : (
+        <p className="consumption-explanation">
+          Додайте пробіг щонайменше до двох заправок — тоді покажу приблизну витрату та її формулу.
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -829,6 +1011,7 @@ export default function Home() {
   }, []);
   const theme = useSyncExternalStore(subscribeToTheme, getThemeSnapshot, getServerThemeSnapshot);
   const [visibleEntryCount, setVisibleEntryCount] = useState(HISTORY_PAGE_SIZE);
+  const [selectedAnalyticsMonth, setSelectedAnalyticsMonth] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [dialog, setDialog] = useState<{ mode: FormMode; entry: FuelEntry | null } | null>(null);
@@ -885,14 +1068,14 @@ export default function Home() {
   const monthSpend = monthEntries.reduce((sum, item) => sum + (item.amount ?? 0), 0);
 
   const monthlyData = useMemo(() => {
-    const grouped = new Map<string, { month: string; amount: number; priceTotal: number; prices: number[] }>();
+    const grouped = new Map<string, { month: string; amount: number; prices: number[]; liters: number }>();
     for (const entry of completeEntries) {
       if (!entry.fillDate || entry.amount == null || entry.unitPrice == null) continue;
       const key = entry.fillDate.slice(0, 7);
-      const value = grouped.get(key) ?? { month: key, amount: 0, priceTotal: 0, prices: [] };
+      const value = grouped.get(key) ?? { month: key, amount: 0, prices: [], liters: 0 };
       value.amount += entry.amount;
-      value.priceTotal += entry.unitPrice;
       value.prices.push(entry.unitPrice);
+      value.liters += entry.liters ?? entry.amount / entry.unitPrice;
       grouped.set(key, value);
     }
     if (!grouped.size) return [];
@@ -903,20 +1086,75 @@ export default function Home() {
     const lastMonth = lastRecordedMonth > thisMonth ? lastRecordedMonth : thisMonth;
     const [firstYear, firstNumber] = firstMonth.split("-").map(Number);
     const cursor = new Date(firstYear, firstNumber - 1, 1, 12);
-    const timeline: Array<{ month: string; amount: number; price: number | null }> = [];
+    const timeline: MonthlyMetric[] = [];
 
     while (monthKey(cursor) <= lastMonth) {
       const key = monthKey(cursor);
       const item = grouped.get(key);
+      const prices = item?.prices ?? [];
       timeline.push({
         month: key,
         amount: item?.amount ?? 0,
-        price: item?.prices.length ? item.priceTotal / item.prices.length : null,
+        price: prices.length ? prices.reduce((sum, price) => sum + price, 0) / prices.length : null,
+        priceMin: prices.length ? Math.min(...prices) : null,
+        priceMax: prices.length ? Math.max(...prices) : null,
+        fillCount: prices.length,
+        liters: item?.liters ?? 0,
       });
       cursor.setMonth(cursor.getMonth() + 1);
     }
     return timeline;
   }, [completeEntries, thisMonth]);
+
+  const defaultSelectedMonth = [...monthlyData].reverse().find((item) => item.fillCount > 0)?.month ?? thisMonth;
+  const selectedMonth = monthlyData.find((item) => item.month === selectedAnalyticsMonth)
+    ?? monthlyData.find((item) => item.month === defaultSelectedMonth)
+    ?? null;
+
+  const consumptionEstimates = useMemo(() => {
+    const chronological = [...completeEntries].sort((a, b) => {
+      const dateOrder = (a.fillDate ?? "").localeCompare(b.fillDate ?? "");
+      if (dateOrder !== 0) return dateOrder;
+      if (a.odometer == null) return b.odometer == null ? 0 : 1;
+      if (b.odometer == null) return -1;
+      return a.odometer - b.odometer;
+    });
+    const litersPrefix = [0];
+    const amountPrefix = [0];
+    const odometerPoints: Array<{ index: number; value: number }> = [];
+
+    chronological.forEach((entry, index) => {
+      litersPrefix.push(litersPrefix[index] + (entry.liters ?? ((entry.amount ?? 0) / (entry.unitPrice || 1))));
+      amountPrefix.push(amountPrefix[index] + (entry.amount ?? 0));
+      if (entry.odometer != null && Number.isFinite(entry.odometer) && entry.odometer > 0) {
+        odometerPoints.push({ index, value: entry.odometer });
+      }
+    });
+
+    const intervals: Array<{ kilometers: number; liters: number; amount: number }> = [];
+    for (let index = 1; index < odometerPoints.length; index += 1) {
+      const previous = odometerPoints[index - 1];
+      const current = odometerPoints[index];
+      const kilometers = current.value - previous.value;
+      const liters = litersPrefix[current.index + 1] - litersPrefix[previous.index + 1];
+      const amount = amountPrefix[current.index + 1] - amountPrefix[previous.index + 1];
+      if (kilometers > 0 && liters > 0) intervals.push({ kilometers, liters, amount });
+    }
+
+    const summarize = (items: typeof intervals): ConsumptionEstimate | null => {
+      const kilometers = items.reduce((sum, item) => sum + item.kilometers, 0);
+      if (!items.length || kilometers <= 0) return null;
+      return {
+        litersPer100Km: items.reduce((sum, item) => sum + item.liters, 0) / kilometers * 100,
+        eurosPer100Km: items.reduce((sum, item) => sum + item.amount, 0) / kilometers * 100,
+        intervalCount: items.length,
+      };
+    };
+    return {
+      recent: summarize(intervals.slice(-6)),
+      all: summarize(intervals),
+    };
+  }, [completeEntries]);
 
   const totalSpend = completeEntries.reduce((sum, item) => sum + (item.amount ?? 0), 0);
   const totalLiters = completeEntries.reduce(
@@ -1072,12 +1310,18 @@ export default function Home() {
                   ) : null}
                 </div>
 
+                {selectedMonth ? <MonthDetailCard month={selectedMonth} /> : null}
+
                 <section className="chart-section">
                   <div className="chart-heading">
                     <div><p className="eyebrow">ЗА МІСЯЦЯМИ</p><h2>Витрати</h2></div>
                     <span className="chart-unit">€</span>
                   </div>
-                  <MonthlyBarChart values={monthlyData} />
+                  <MonthlyBarChart
+                    values={monthlyData}
+                    selectedMonth={selectedMonth?.month ?? null}
+                    onSelectMonth={setSelectedAnalyticsMonth}
+                  />
                 </section>
 
                 <section className="chart-section price-section">
@@ -1085,13 +1329,15 @@ export default function Home() {
                     <div><p className="eyebrow">СЕРЕДНЄ ЗА МІСЯЦЬ</p><h2>Ціна за літр</h2></div>
                     <span className="chart-unit">€/л</span>
                   </div>
-                  <MonthlyPriceChart values={monthlyData} />
+                  <MonthlyPriceChart
+                    values={monthlyData}
+                    selectedMonth={selectedMonth?.month ?? null}
+                    onSelectMonth={setSelectedAnalyticsMonth}
+                  />
                 </section>
 
-                <p className="chart-scroll-hint">Поточний місяць праворуч · гортайте вліво, щоб побачити давніші</p>
-                <p className="analytics-note">
-                  Літри обчислено як сума оплати ÷ ціна за літр. Витрату на 100 км не показую, бо в журналі є дозаправки й не для всіх записів вказаний пробіг.
-                </p>
+                <p className="chart-scroll-hint">Торкніться місяця на графіку · поточний період праворуч · гортайте вліво до давніших</p>
+                <ConsumptionCard recent={consumptionEstimates.recent} all={consumptionEstimates.all} />
               </>
             )}
           </section>
