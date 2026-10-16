@@ -4,6 +4,7 @@ import { Check, ChevronLeft, ChevronRight, CircleAlert, LoaderCircle, MapPin, Tr
 import { useEffect, useRef, useState } from "react";
 import { priceMoney, number, dateKey, dateForDisplay, asNumber } from "@/lib/fuel-format";
 import type { FuelEntry, FormMode, JournalChange } from "@/lib/fuel-types";
+import { FINANCE_ACCOUNTS, type FinanceAccount } from "@/lib/finance-export";
 
 export default function FuelDialog({
   mode,
@@ -19,6 +20,14 @@ export default function FuelDialog({
   onSaved: (message: string, change: JournalChange) => void;
 }) {
   const [step, setStep] = useState(1);
+  const [requestId] = useState(() => crypto.randomUUID());
+  const [exportFinance, setExportFinance] = useState(true);
+  const [financeAccount, setFinanceAccount] = useState<FinanceAccount>("cash");
+  const [nativeAmount, setNativeAmount] = useState("");
+  const [financeState, setFinanceState] = useState<{ status: string; message?: string } | null>(null);
+  const [retryingFinance, setRetryingFinance] = useState(false);
+  const needsUAH = exportFinance && financeAccount === "ukrsib";
+  const stepCount = needsUAH ? 5 : 4;
   const [unitPrice, setUnitPrice] = useState(entry?.unitPrice?.toString() ?? lastPrice?.toString() ?? "");
   const [amount, setAmount] = useState(entry?.amount?.toString() ?? "");
   const [odometer, setOdometer] = useState(entry?.odometer?.toString() ?? "");
@@ -34,6 +43,26 @@ export default function FuelDialog({
   const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (mode !== "edit" || !entry) return;
+    const controller = new AbortController();
+    fetch("/api/fuel/" + encodeURIComponent(entry.id) + "/finance", { signal: controller.signal, cache: "no-store" })
+      .then(async response => { if (!response.ok) throw new Error(); setFinanceState(await response.json()); })
+      .catch(() => { if (!controller.signal.aborted) setFinanceState({ status: "unavailable", message: "Не вдалося перевірити передачу у Finance HUB." }); });
+    return () => controller.abort();
+  }, [entry, mode]);
+
+  const retryFinance = async () => {
+    if (!entry || retryingFinance) return;
+    setRetryingFinance(true);
+    try {
+      const response = await fetch("/api/fuel/" + encodeURIComponent(entry.id) + "/finance", { method: "POST", headers: { "x-fuel-intent": "finance-sync" } });
+      if (!response.ok) throw new Error();
+      setFinanceState(await response.json());
+    } catch { setFinanceState({ status: "pending", message: "Передачу не підтверджено. Спробуйте після підключення." }); }
+    finally { setRetryingFinance(false); }
+  };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -82,6 +111,9 @@ export default function FuelDialog({
 
   const save = async (skipMileage = false) => {
     setError("");
+    if (mode === "new" && needsUAH && (!asNumber(nativeAmount) || asNumber(nativeAmount)! <= 0)) {
+      setStep(5); setError("Вкажіть фактичну суму списання у гривнях."); return;
+    }
     if (!navigator.onLine) {
       setError("Для збереження потрібен інтернет. Введені дані залишаються у формі.");
       return;
@@ -91,6 +123,7 @@ export default function FuelDialog({
       const body =
         mode === "new"
           ? {
+              id: requestId,
               fillDate: dateKey(),
               unitPrice: price,
               amount: paid,
@@ -99,6 +132,7 @@ export default function FuelDialog({
               latitude: location?.latitude ?? null,
               longitude: location?.longitude ?? null,
               locationAccuracy: location?.accuracy ?? null,
+              ...(exportFinance ? { financeAccount, financeNativeAmount: needsUAH ? asNumber(nativeAmount) : undefined } : {}),
             }
           : {
               fillDate: fillDate || undefined,
@@ -115,9 +149,9 @@ export default function FuelDialog({
           body: JSON.stringify(body),
         },
       );
-      const result = (await response.json()) as { error?: string; entry?: FuelEntry };
+      const result = (await response.json()) as { error?: string; entry?: FuelEntry; finance?: { status: string } };
       if (!response.ok || !result.entry) throw new Error(result.error || "Не вдалося зберегти запис.");
-      onSaved(mode === "new" ? "Заправку збережено" : "Зміни збережено", { entry: result.entry });
+      onSaved(mode === "new" ? result.finance?.status === "synced" ? "Заправку й витрату збережено" : result.finance ? "Заправка збережена. Передачу витрати можна повторити з редагування запису." : "Заправку збережено" : "Зміни збережено", { entry: result.entry });
     } catch (saveError) {
       setError(saveError instanceof TypeError
         ? "Для збереження потрібен інтернет. Не вдалося під’єднатися; введені дані залишаються у формі."
@@ -190,11 +224,11 @@ export default function FuelDialog({
 
         {mode === "new" ? (
           <>
-            <div className="step-progress" aria-label={"Крок " + step + " з 4"}>
-              {[1, 2, 3, 4].map((item) => <span key={item} className={item <= step ? "step-active" : ""} />)}
+            <div className="step-progress" style={{ gridTemplateColumns: `repeat(${stepCount}, 1fr)` }} aria-label={"Крок " + step + " з " + stepCount}>
+              {Array.from({ length: stepCount }, (_, index) => index + 1).map((item) => <span key={item} className={item <= step ? "step-active" : ""} />)}
             </div>
             <p className="step-caption">
-              КРОК {step} З 4 <span>{step === 1 ? "Опис" : step === 2 ? "Ціна за літр" : step === 3 ? "Оплата" : "Пробіг і місце"}</span>
+              КРОК {step} З {stepCount} <span>{step === 1 ? "Опис" : step === 2 ? "Ціна за літр" : step === 3 ? "Оплата" : step === 4 ? "Пробіг і рахунок" : "Списання у гривнях"}</span>
               {step > 1 ? <button type="button" onClick={() => setStep((current) => current - 1)}><ChevronLeft size={13} />Назад</button> : null}
             </p>
             {step === 1 && (
@@ -302,6 +336,17 @@ export default function FuelDialog({
                   </span>
                   <small>Можна додати пізніше з журналу.</small>
                 </label>
+                <div className="finance-choice">
+                  <label className="finance-toggle"><input type="checkbox" checked={exportFinance} onChange={event => setExportFinance(event.target.checked)} /><span>Записати витрату у Finance HUB</span></label>
+                  {exportFinance ? <>
+                    <fieldset className="finance-accounts"><legend>Рахунок оплати</legend>
+                      {FINANCE_ACCOUNTS.map(account => <label key={account.id} className={financeAccount === account.id ? "selected" : ""}>
+                        <input type="radio" name="finance-account" value={account.id} checked={financeAccount === account.id} onChange={() => setFinanceAccount(account.id)} />{account.label}
+                      </label>)}
+                    </fieldset>
+                    <p>Категорія «Пальне» · {needsUAH ? "На наступному кроці вкажіть списання у гривнях." : "Сума в євро та дата заправки передадуться разом із записом."}</p>
+                  </> : null}
+                </div>
                 <button className={"location-choice " + (location ? "location-ready" : "")} type="button" onClick={captureLocation} disabled={locating}>
                   {locating ? <LoaderCircle className="spin" size={19} /> : location ? <Check size={19} /> : <MapPin size={19} />}
                   <span>
@@ -312,6 +357,11 @@ export default function FuelDialog({
                 </button>
               </div>
             )}
+            {step === 5 && <label className="field-label" htmlFor="native-amount">
+              Скільки списав Укрсиб
+              <span className="input-shell"><span className="input-prefix">₴</span><input id="native-amount" type="number" inputMode="decimal" min="0.01" max="1000000" step="0.01" placeholder="2 500,00" value={nativeAmount} onChange={event => { setNativeAmount(event.target.value); setError(""); }} /></span>
+              <small>Фактична сума з банку. У журналі пального залишається {priceMoney.format(paid ?? 0)}, у Finance HUB — списання у гривнях.</small>
+            </label>}
           </>
         ) : (
           <div className="edit-fields">
@@ -338,6 +388,11 @@ export default function FuelDialog({
             <button className="delete-entry-trigger" type="button" onClick={() => setConfirmDelete(true)} disabled={saving}>
               <Trash2 size={16} />Видалити цей запис
             </button>
+            {financeState && financeState.status !== "unlinked" ? <div className="finance-choice" role="status">
+              <strong>Finance HUB</strong>
+              <p>{financeState.status === "synced" ? "Витрату передано. Зміни суми, рахунку або видалення витрати робіть у Finance HUB." : financeState.message}</p>
+              {financeState.status === "pending" ? <button className="button-secondary" type="button" onClick={() => void retryFinance()} disabled={retryingFinance || saving}>{retryingFinance ? <LoaderCircle className="spin" size={16} /> : null}Повторити передачу</button> : null}
+            </div> : null}
           </div>
         )}
 
@@ -369,7 +424,7 @@ export default function FuelDialog({
               <span />
               <button className="button-primary" type="button" onClick={next}>Далі<ChevronRight size={17} /></button>
             </>
-          ) : (
+          ) : step === 4 && needsUAH ? <><span /><button className="button-primary" type="button" onClick={() => setStep(5)}>Далі<ChevronRight size={17} /></button></> : (
             <>
               {odometer.trim() ? (
                 <button className="button-secondary skip-button" type="button" onClick={() => void save(true)} disabled={saving}>
