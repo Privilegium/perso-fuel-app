@@ -7,6 +7,7 @@ Baseline source: `653876affce69745042f744e8f96a8ac142ebe7e` (Sites version 13).
 ## Findings and targeted fixes
 
 - The manifest and Apple touch icon already supported installation, but there was no service worker. Added stable manifest `id` and `lang`; retained the existing name, icons, scope, standalone display, theme and safe-area UI.
+- Live signed-in browser inspection found manifest requests returning `401`: manifests require an explicit `crossorigin="use-credentials"` even on the same origin when they are private. Added the credentialed link without widening site access.
 - Every launch waited for hydration and a fresh journal download. The single journal request now starts in the document head while React downloads. A validated, asynchronous Cache API snapshot renders immediately after hydration; the request revalidates in the background.
 - Added conditional ETag responses (`304`) and private cache headers. Removed internal creation/update timestamps from the read payload; database fields and records remain intact. ETags reduce transfer, not the underlying D1 read.
 - Saves/edits/deletes now update the UI and snapshot from the authoritative mutation response instead of downloading the journal again. Abort/generation checks prevent an older in-flight read from undoing a newer mutation. Other open tabs are notified by the worker.
@@ -49,6 +50,7 @@ The extra cold resource is a small shared formatter chunk. Cold first paint rema
 - Seventeen browser checks pass: show all; analytics/month selection; active-tab reload; four-step create; optional mileage; synthetic geolocation; no opening autofocus; edit/delete; no redundant mutation GET; snapshot invalidation; offline history/visited analytics; failed-save input retention with no replay; server/auth failures; theme metadata; safe waiting updates; next-launch activation; zero uncaught errors; exact restoration of original local data after disposable-record cleanup.
 - The normal mobile first viewport is **pixel-identical** to baseline (1170 × 2532 device pixels, zero differing channels). Desktop and mobile screenshots were inspected. The existing desktop date/amount column wrapping at 1280 px remains outside this performance change; its table markup and CSS were preserved.
 - No database schema changes, migrations, production test writes, dependency additions or style changes.
+- Production verification in the user's normal signed-in Chrome session confirmed an activated/running worker and an offline reload displaying all 48 live records (five shown initially). The temporary API-header verification method could not authenticate the browser's service-worker registration request; it was not used as evidence against the real signed-in flow. The offline setting was restored after testing.
 
 ## iPhone/Home Screen behavior and limits
 
@@ -64,3 +66,4 @@ Sources checked during the audit:
 - [MDN: PWA caching strategies](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Caching)
 - [MDN: Service-worker install/update lifecycle](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers)
 - [MDN: Cache-Control and immutable hashed resources](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cache-Control)
+- [MDN: Credentialed manifests, including same-origin requests](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/crossorigin)

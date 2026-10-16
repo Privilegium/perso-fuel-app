@@ -12,7 +12,6 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Моє пальне — журнал заправок",
   description: "Особистий журнал заправок, витрат і пробігу.",
-  manifest: "/site.webmanifest",
   appleWebApp: {
     capable: true,
     title: "Моє пальне",
@@ -33,6 +32,7 @@ export default function RootLayout({
   return (
     <html lang="uk" data-fuel-app="journal" suppressHydrationWarning>
       <head>
+        <link rel="manifest" href="/site.webmanifest" crossOrigin="use-credentials" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <script dangerouslySetInnerHTML={{ __html: journalBootstrap }} />
         <script
