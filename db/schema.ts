@@ -54,3 +54,12 @@ export const reminderDeliveries = sqliteTable("reminder_deliveries", {
   id: text("id").primaryKey(),
   sentAt: text("sent_at").notNull().default(sql.raw("CURRENT_TIMESTAMP")),
 });
+
+// Immutable export intent survives fuel edits/deletion and uncertain responses.
+export const financeExports = sqliteTable("finance_exports", {
+  fuelId: text("fuel_id").primaryKey(),
+  payload: text("payload").notNull(),
+  status: text("status").notNull().default("pending"),
+  message: text("message"),
+  createdAt: text("created_at").notNull().default(sql.raw("CURRENT_TIMESTAMP")),
+});

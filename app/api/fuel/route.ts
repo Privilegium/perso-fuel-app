@@ -1,7 +1,9 @@
-import { desc, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { fuelEntries } from "@/db/schema";
+import { financeExports, fuelEntries } from "@/db/schema";
 import { after } from "next/server";
+import { fuelExpense } from "@/lib/finance-export";
+import { syncFuelExpense } from "@/lib/finance-sync";
 
 function errorResponse(error: unknown) {
   console.error("fuel API error", error);
@@ -93,11 +95,11 @@ export async function POST(request: Request) {
       return Response.json({ error: "Координати місця некоректні." }, { status: 400 });
     }
 
-    const db = getDb();
-    const [entry] = await db
-      .insert(fuelEntries)
-      .values({
-        id: crypto.randomUUID(),
+    const id = typeof payload.id === "string" ? payload.id : crypto.randomUUID();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return Response.json({ error: "Некоректний ідентифікатор запису." }, { status: 400 });
+    if (payload.financeAccount !== undefined && request.headers.get("origin") !== new URL(request.url).origin) return new Response(null, { status: 403 });
+    const values = {
+        id,
         fillDate,
         unitPrice: Math.round(unitPrice * 1000) / 1000,
         amount: Math.round(amount * 100) / 100,
@@ -107,10 +109,30 @@ export async function POST(request: Request) {
         longitude,
         locationAccuracy,
         note: note || null,
-      })
-      .returning();
+    };
+    let expense;
+    try { expense = payload.financeAccount === undefined ? null : fuelExpense(values, payload.financeAccount, payload.financeNativeAmount); }
+    catch (error) { return Response.json({ error: (error as Error).message }, { status: 400 }); }
+    const db = getDb();
+    const [previous] = await db.select().from(fuelEntries).where(eq(fuelEntries.id, id)).limit(1);
+    const [previousExport] = previous ? await db.select().from(financeExports).where(eq(financeExports.fuelId, id)).limit(1) : [];
+    if (previous && (Object.entries(values).some(([key, value]) => previous[key as keyof typeof previous] !== value) ||
+      (previousExport?.payload ?? null) !== (expense ? JSON.stringify(expense) : null))) {
+      return Response.json({ error: "Цю заправку вже збережено. Закрийте форму й перевірте запис в історії." }, { status: 409 });
+    }
+    const insert = db.insert(fuelEntries).values(values).onConflictDoNothing();
+    // D1 batch is atomic: a fuel row and its finance intent are saved together.
+    if (expense) await db.batch([insert, db.insert(financeExports).values({ fuelId: id, payload: JSON.stringify(expense) }).onConflictDoNothing()]);
+    else await insert;
+    const [entry] = await db.select().from(fuelEntries).where(eq(fuelEntries.id, id)).limit(1);
+    const [storedExport] = expense ? await db.select().from(financeExports).where(eq(financeExports.fuelId, id)).limit(1) : [];
+    if (!entry || Object.entries(values).some(([key, value]) => entry[key as keyof typeof entry] !== value) ||
+      (storedExport?.payload ?? null) !== (expense ? JSON.stringify(expense) : null)) {
+      return Response.json({ error: "Цю заправку вже збережено з іншими даними. Перевірте історію." }, { status: 409 });
+    }
+    const finance = expense ? await syncFuelExpense(id).catch(() => ({ status: "pending", message: "Заправка збережена. Повторіть передачу з редагування запису." })) : null;
     after(async () => { await (await import("@/lib/service-push")).dispatchServiceReminders(); });
-    return Response.json({ entry }, { status: 201 });
+    return Response.json({ entry, finance }, { status: previous ? 200 : 201 });
   } catch (error) {
     return errorResponse(error);
   }
