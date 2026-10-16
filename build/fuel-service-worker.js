@@ -112,7 +112,7 @@ self.addEventListener("push", event => {
   const title = typeof data?.title === "string" ? data.title : "Моє пальне · Сервіс";
   event.waitUntil(self.registration.showNotification(title, {
     body: typeof data?.body === "string" ? data.body : "Відкрийте сервіс, щоб перевірити нагадування.",
-    icon: "/icon-192.png", badge: "/icon-192.png",
+    icon: "/night-mint-192.png", badge: "/night-mint-192.png",
     tag: typeof data?.tag === "string" ? data.tag : "service-reminder",
     data: { url: "/?tab=service" },
   }));

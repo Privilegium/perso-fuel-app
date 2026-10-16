@@ -17,7 +17,7 @@ export function fuelPwa(): Plugin {
     async closeBundle() {
       const directory = resolve(root, "dist/client");
       const manifest: Record<string, Asset> = JSON.parse(await readFile(resolve(directory, ".vite/manifest.json"), "utf8"));
-      const files = new Set<string>(["/site.webmanifest", "/fuel-icon.svg"]);
+      const files = new Set<string>(["/site.webmanifest", "/night-mint-64.png"]);
       const visited = new Set<string>();
       const visit = (key: string) => {
         if (visited.has(key)) return;
