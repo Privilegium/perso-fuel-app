@@ -2,6 +2,7 @@
 
 import { Component, type ReactNode } from "react";
 import { LoaderCircle } from "lucide-react";
+import { LaunchReady } from "@/components/launch-ready";
 
 function reloadLatestShell() {
   // A full document request repairs a missing chunk; client routing would reuse
@@ -20,7 +21,7 @@ export class FeatureBoundary extends Component<{ children: ReactNode; onClose?: 
   static getDerivedStateFromError() { return { failed: true }; }
   render() {
     if (!this.state.failed) return this.props.children;
-    const content = <div className="error-panel" role="alert">
+    const content = <div className="error-panel" role="alert"><LaunchReady />
       <span>Не вдалося завантажити цей розділ. Під’єднайтеся до інтернету та спробуйте знову.</span>
       <button className="text-button" onClick={reloadLatestShell}>Спробувати знову</button>
       {this.props.onClose ? <button className="text-button" onClick={this.props.onClose}>Закрити</button> : null}

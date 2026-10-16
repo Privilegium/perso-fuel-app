@@ -8,7 +8,7 @@ const core = ["/_next/static/app-123.js", "/_next/static/app-123.css"];
 const template = await readFile(new URL("../build/fuel-service-worker.js", import.meta.url), "utf8");
 
 function worker() {
-  const stores = new Map(), handlers = new Map(), requests = [], messages = [];
+  const stores = new Map(), handlers = new Map(), requests = [], messages = [], notifications = [], opened = [];
   let network;
   const urlOf = request => new URL(typeof request === "string" ? request : request.url, origin).href;
   const fetch = async request => {
@@ -41,11 +41,17 @@ function worker() {
     location: { origin },
     addEventListener: (name, handler) => handlers.set(name, handler),
     skipWaiting: () => { skipped = true; },
-    clients: { claim: async () => { claimed = true; }, matchAll: async () => ["current", "other"].map(id => ({ id, postMessage: message => messages.push({ id, ...message }) })) },
+    registration: { showNotification: async (title, options) => notifications.push({ title, ...options }) },
+    clients: { claim: async () => { claimed = true; }, openWindow: async url => opened.push(url), matchAll: async () => ["current", "other"].map(id => ({ id, url: origin + "/", focus: async () => {}, postMessage: message => messages.push({ id, ...message }) })) },
   };
   vm.runInNewContext(template.replace("__FUEL_VERSION__", '"test"').replace("__FUEL_CORE_ASSETS__", JSON.stringify(core)), { self, caches, fetch, URL, Response, Set });
   return {
-    caches, stores, requests, messages,
+    caches, stores, requests, messages, notifications, opened,
+    emitEvent: async (type, extra) => {
+      const pending = [];
+      handlers.get(type)({ ...extra, waitUntil: promise => pending.push(promise) });
+      await Promise.all(pending);
+    },
     setNetwork: handler => { network = handler; },
     skipped: () => skipped, claimed: () => claimed,
     emit: (type, request, clientId = "current") => {
@@ -160,4 +166,39 @@ test("on-demand chunks are bounded without evicting pinned core assets or cachin
   assert.ok(await assets.match(core[0]));
   assert.equal(await assets.match("/_next/static/feature-0.js"), undefined);
   assert.equal(app.emit("fetch", new Request("https://tile.openstreetmap.org/1/1/1.png")), undefined);
+});
+
+test('service writes invalidate only the service snapshot and notify other tabs', async () => {
+  const app = worker();
+  await app.caches.open('fuel-log-service-v1');
+  await app.caches.open('fuel-log-journal-v1');
+  await app.emit('fetch', new Request(origin + '/api/service', { method: 'POST', body: '{}' }));
+  assert.equal(app.stores.has('fuel-log-service-v1'), false);
+  assert.equal(app.stores.has('fuel-log-journal-v1'), true);
+  assert.equal(app.messages[0].type, 'FUEL_SERVICE_CHANGED');
+  const count=app.messages.length;
+  await app.emit('fetch', new Request(origin + '/api/service/dispatch', { method: 'POST' }));
+  assert.equal(app.messages.length,count);
+});
+test('each push produces a visible notification, with a safe fallback for invalid data', async () => {
+  const app=worker();
+  await app.emitEvent('push',{data:{json:()=>({title:'Заміна масла',body:'Час заміни',tag:'service-oil',url:'https://evil.test'})}});
+  assert.equal(app.notifications[0].title,'Заміна масла');
+  assert.equal(app.notifications[0].data.url,'/?tab=service');
+  await app.emitEvent('push',{data:{json:()=>{throw new Error('bad JSON')}}});
+  assert.equal(app.notifications.length,2);
+  assert.equal(app.notifications[1].title,'Моє пальне · Сервіс');
+});
+test('notification clicks focus the app and open its service tab', async () => {
+  const app=worker();let closed=false;
+  await app.emitEvent('notificationclick',{notification:{close:()=>{closed=true}}});
+  assert.equal(closed,true);
+  assert.equal(app.messages[0].type,'FUEL_OPEN_SERVICE');
+});
+
+test('a notification can open the service tab offline using the cached root shell', async () => {
+  const app=worker();await app.emit('install');
+  app.setNetwork(()=>{throw new Error('offline')});
+  const response=await app.emit('fetch',{url:origin+'/?tab=service',method:'GET',mode:'navigate'});
+  assert.equal(response.status,200);assert.match(await response.text(),/data-fuel-app/);
 });

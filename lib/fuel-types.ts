@@ -12,7 +12,7 @@ export type FuelEntry = {
   note: string | null;
 };
 
-export type Tab = "fills" | "analytics" | "map";
+export type Tab = "fills" | "analytics" | "map" | "service";
 export type Theme = "light" | "dark";
 export type FormMode = "new" | "edit";
 export type MonthlyMetric = {

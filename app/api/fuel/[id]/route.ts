@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { fuelEntries } from "@/db/schema";
+import { after } from "next/server";
 
 export async function DELETE(
   _request: Request,
@@ -86,6 +87,7 @@ export async function PATCH(
       .where(eq(fuelEntries.id, id))
       .returning();
     if (!entry) return Response.json({ error: "Заправку не знайдено." }, { status: 404 });
+    after(async () => { await (await import("@/lib/service-push")).dispatchServiceReminders(); });
     return Response.json({ entry });
   } catch (error) {
     console.error("fuel edit error", error);

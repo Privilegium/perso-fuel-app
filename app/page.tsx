@@ -1,18 +1,21 @@
 "use client";
 
-import { BarChart3, Check, ChevronDown, ChevronRight, CircleAlert, Fuel, Gauge, List, LoaderCircle, MapPin, MapPinned, Moon, Pencil, Plus, Sun } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, lazy, Suspense } from "react";
+import { BarChart3, Check, ChevronDown, ChevronRight, CircleAlert, Fuel, Gauge, List, LoaderCircle, MapPin, MapPinned, Moon, Pencil, Plus, Sun, Wrench } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, lazy, Suspense, type CSSProperties } from "react";
 import { FeatureBoundary, FeatureLoading } from "@/components/feature-boundary";
 import { money, priceMoney, number, integer, dateForDisplay, monthKey, monthTitle, monthShort } from "@/lib/fuel-format";
 import type { FuelEntry, Tab, Theme, FormMode, MonthlyMetric, JournalChange } from "@/lib/fuel-types";
 import { readJournalSnapshot, writeJournalSnapshot, clearJournalSnapshot, isFuelEntries, takeLaunchRequest } from "@/lib/journal-cache";
 
 import { startPwa } from "@/lib/pwa";
+import { LaunchReady } from "@/components/launch-ready";
+import { clearServiceSnapshot } from "@/lib/service-cache";
 
 const loadDialog = () => import("@/components/fuel-dialog");
 const FuelDialog = lazy(loadDialog);
 const FuelMap = lazy(() => import("@/components/fuel-map"));
 const FuelAnalytics = lazy(() => import("@/components/fuel-analytics"));
+const FuelService = lazy(() => import("@/components/fuel-service"));
 
 const HISTORY_PAGE_SIZE = 5;
 const ACTIVE_TAB_STORAGE_KEY = "fuel-log-active-tab";
@@ -23,7 +26,7 @@ const THEME_CHANGE_EVENT = "fuel-log-theme-change";
 function getActiveTabSnapshot(): Tab {
   if (typeof window === "undefined") return "fills";
   const stored = window.sessionStorage.getItem(ACTIVE_TAB_STORAGE_KEY);
-  return stored === "analytics" || stored === "map" ? stored : "fills";
+  return stored === "analytics" || stored === "map" || stored === "service" ? stored : "fills";
 }
 
 function subscribeToActiveTab(onChange: () => void) {
@@ -125,6 +128,7 @@ function FuelTable({
             return (
               <tr key={entry.id} className={!complete ? "incomplete-row" : undefined}>
                 <td className="fill-date-cell">
+                  <div className="fill-date-layout">
                   <div className="date-cell-copy">
                     <span className="cell-label">Дата</span>
                     <span className="date-line">
@@ -146,6 +150,7 @@ function FuelTable({
                       {money.format(entry.amount)}
                     </strong>
                   ) : null}
+                  </div>
                 </td>
                 <td>
                   <span className="cell-label">Ціна / л</span>
@@ -173,9 +178,10 @@ function BottomNavigation({ active, onSelect }: { active: Tab; onSelect: (tab: T
     { id: "fills", label: "Заправки", icon: List },
     { id: "analytics", label: "Статистика", icon: BarChart3 },
     { id: "map", label: "Мапа", icon: MapPinned },
+    { id: "service", label: "Сервіс", icon: Wrench },
   ];
   return (
-    <nav className="bottom-nav" aria-label="Головна навігація">
+    <nav className="bottom-nav" aria-label="Головна навігація" style={{ "--active-tab-index": items.findIndex(item => item.id === active) } as CSSProperties}>
       {items.map(({ id, label, icon: Icon }) => (
         <button
           key={id}
@@ -220,7 +226,7 @@ export default function Home() {
     document.documentElement.dataset.theme = nextTheme;
     document.querySelector('meta[name="theme-color"]')?.setAttribute(
       "content",
-      nextTheme === "dark" ? "#111913" : "#f5f7f5",
+      nextTheme === "dark" ? "#111827" : "#f3f5fa",
     );
     document
       .querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')
@@ -240,7 +246,6 @@ export default function Home() {
     const controller = launch?.controller ?? new AbortController();
     activeRequest.current = controller;
     const task = (async () => {
-      const timeout = window.setTimeout(() => controller.abort(), 10000);
       try {
         if (!navigator.onLine) throw new Error("Немає з’єднання з інтернетом.");
         let response = await (launch?.response ?? fetch("/api/fuel", {
@@ -252,7 +257,7 @@ export default function Home() {
         const sessionEnded = response.status === 401 || response.status === 403 || response.redirected
           || (response.ok && response.headers.get("content-type")?.includes("text/html"));
         if (sessionEnded) {
-          await clearJournalSnapshot();
+          await Promise.all([clearJournalSnapshot(), clearServiceSnapshot()]);
           journal.current = [];
           snapshotAvailable.current = false;
           etag.current = null;
@@ -285,7 +290,6 @@ export default function Home() {
           ? "Не вдалося оновити дані. Показано збережену історію. Оновлю після підключення."
           : error instanceof Error && error.name !== "AbortError" ? error.message : "Не вдалося під’єднатися. Спробуйте ще раз.");
       } finally {
-        window.clearTimeout(timeout);
         if (requestGeneration === generation.current) setLoading(false);
       }
     })();
@@ -297,6 +301,12 @@ export default function Home() {
     return task;
   }, []);
 
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("tab") === "service") {
+      setTab("service");
+      window.history.replaceState(null, "", "/");
+    }
+  }, [setTab]);
   useEffect(() => {
     let cancelled = false;
     void readJournalSnapshot().then((saved) => {
@@ -314,7 +324,11 @@ export default function Home() {
     const resume = () => {
       if (!document.hidden && Date.now() - lastSync.current > 60000) void refresh();
     };
-    const online = () => { void refresh(); };
+    const online = () => {
+      // A failed offline launch can still be settling when the online event
+      // arrives. Refresh after it settles instead of deduplicating into it.
+      void (inFlight.current ?? Promise.resolve()).then(() => refresh());
+    };
     const message = (event: MessageEvent) => {
       if (event.data?.type === "FUEL_SESSION_CLEARED") {
         generation.current += 1;
@@ -328,10 +342,13 @@ export default function Home() {
         setLoading(false);
         setLoadError("Сеанс завершився. Під’єднайтеся до інтернету та увійдіть знову.");
         void clearJournalSnapshot();
+        void clearServiceSnapshot();
       } else if (event.data?.type === "FUEL_JOURNAL_CHANGED") {
         lastSync.current = 0;
         etag.current = null;
         resume();
+      } else if (event.data?.type === "FUEL_OPEN_SERVICE") {
+        setTab("service");
       }
     };
     window.addEventListener("online", online);
@@ -348,7 +365,7 @@ export default function Home() {
       document.removeEventListener("visibilitychange", resume);
       navigator.serviceWorker?.removeEventListener("message", message);
     };
-  }, [refresh]);
+  }, [refresh, setTab]);
   useEffect(startPwa, []);
   useEffect(() => {
     if (!toast) return;
@@ -462,7 +479,8 @@ export default function Home() {
         </button>
       </header>
 
-      <div className="content-shell">
+      <div className="content-shell tab-content" key={tab}>
+        {!loading && (tab === "fills" || (loadError && !hasSnapshot)) ? <LaunchReady /> : null}
         {tab === "fills" && (
           <>
             <div className="page-heading">
@@ -542,6 +560,7 @@ export default function Home() {
           <FeatureBoundary>
             <Suspense fallback={<FeatureLoading />}>
               <FuelAnalytics completeEntries={completeEntries} monthlyData={monthlyData} selectedMonth={selectedMonth} setSelectedAnalyticsMonth={setSelectedAnalyticsMonth} loading={loading} loadError={loadError} hasSnapshot={hasSnapshot} />
+              {!loading ? <LaunchReady /> : null}
             </Suspense>
           </FeatureBoundary>
         )}
@@ -566,10 +585,13 @@ export default function Home() {
                   .join("|")}
                 entries={entries}
                 onAdd={() => setDialog({ mode: "new", entry: null })}
-              /></Suspense></FeatureBoundary>
+              /><LaunchReady /></Suspense></FeatureBoundary>
             ) : null}
             <p className="map-privacy"><MapPin size={15} /> Місце зберігається лише для записів, де ви надали доступ до геолокації.</p>
           </section>
+        )}
+        {tab === "service" && (
+          <FeatureBoundary><Suspense fallback={<FeatureLoading />}><FuelService entries={entries} journalLoading={loading} /></Suspense></FeatureBoundary>
         )}
       </div>
 

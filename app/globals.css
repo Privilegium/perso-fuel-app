@@ -2,69 +2,77 @@
 
 :root {
   color-scheme: light;
-  --canvas: #f5f7f5;
+  --canvas: #f3f5fa;
   --surface: #ffffff;
-  --surface-soft: #fafcfb;
-  --surface-hover: #fbfdfb;
-  --surface-border: #e9eeea;
-  --line-soft: #edf0ee;
-  --ink: #172c22;
-  --muted: #738078;
-  --text-secondary: #435248;
-  --text-tertiary: #87928a;
-  --text-label: #78867d;
-  --line: #e7ece8;
-  --green: #176349;
-  --green-deep: #124e39;
-  --green-soft: #e9f3ed;
-  --lime: #bce5c6;
-  --banner: #124e39;
-  --banner-copy: #c6d9cd;
-  --header-surface: #f5f7f5;
-  --nav-surface: #f5f7f5;
-  --nav-active-bg: #124e39;
-  --nav-active-fg: #f7fff8;
-  --fab-bg: #124e39;
-  --fab-hover: #176349;
-  --input-surface: #fafcfb;
-  --choice-surface: #f7faf7;
-  --chart-grid: #e5ebe6;
-  --focus-ring: #83b99b;
-  --amber: #e69a4a;
-  --red: #a5483c;
+  --surface-soft: #f0f3fa;
+  --surface-hover: #e9edf8;
+  --surface-border: #dce2ef;
+  --line-soft: #e7ebf4;
+  --ink: #202c43;
+  --muted: #657189;
+  --text-secondary: #475673;
+  --text-tertiary: #75819a;
+  --text-label: #64728b;
+  --line: #dce2ef;
+  --green: #5067ad;
+  --green-deep: #344d90;
+  --green-soft: #e7ecfc;
+  --lime: #c4cffc;
+  --banner: #344b7c;
+  --banner-copy: #d6dff4;
+  --header-surface: #f3f5fa;
+  --nav-surface: #f3f5fa;
+  --nav-active-bg: #344b7c;
+  --nav-active-fg: #ffffff;
+  --fab-bg: #344b7c;
+  --fab-hover: #405b96;
+  --input-surface: #f3f5fa;
+  --choice-surface: #eef1fa;
+  --chart-grid: #dfe5f1;
+  --focus-ring: #889de1;
+  --amber: #b97617;
+  --red: #bf4f4c;
   --radius: 18px;
+  --status-good: #218553;
+  --status-warning: #b5760b;
+  --status-overdue: #bf4f4c;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --canvas: #111913;
-  --surface: #19231c;
-  --surface-soft: #202c23;
-  --surface-hover: #26352b;
-  --surface-border: #304137;
-  --line-soft: #2b3930;
-  --ink: #edf5ef;
-  --muted: #aab9af;
-  --text-secondary: #c5d1c8;
-  --text-tertiary: #9aaa9f;
-  --text-label: #a6b4aa;
-  --line: #304137;
-  --green: #276c48;
-  --green-deep: #bee8ca;
-  --green-soft: #25392c;
-  --lime: #c3eacf;
-  --banner: #15452e;
-  --banner-copy: #d0e5d5;
-  --header-surface: #111913;
-  --nav-surface: #111913;
-  --nav-active-bg: #1a5c40;
-  --nav-active-fg: #f7fff8;
-  --fab-bg: #15452e;
-  --fab-hover: #1a5c40;
-  --input-surface: #202c23;
-  --choice-surface: #202c23;
-  --chart-grid: #314037;
-  --focus-ring: #70c693;
+  --canvas: #111827;
+  --surface: #1b2636;
+  --surface-soft: #223044;
+  --surface-hover: #29394f;
+  --surface-border: #304055;
+  --line-soft: #304055;
+  --ink: #eef2fb;
+  --muted: #abb6cb;
+  --text-secondary: #c6cfe0;
+  --text-tertiary: #9eacc5;
+  --text-label: #adb9ce;
+  --line: #304055;
+  --green: #a9bafc;
+  --green-deep: #bdc9ff;
+  --green-soft: #293757;
+  --lime: #c9d3ff;
+  --banner: #304776;
+  --banner-copy: #d6dff6;
+  --header-surface: #111827;
+  --nav-surface: #111827;
+  --nav-active-bg: #a9bafc;
+  --nav-active-fg: #17233b;
+  --fab-bg: #304776;
+  --fab-hover: #405b96;
+  --input-surface: #223044;
+  --choice-surface: #223044;
+  --chart-grid: #35455e;
+  --focus-ring: #a9bafc;
+  --amber: #efbd54;
+  --red: #ff9e98;
+  --status-good: #55ce91;
+  --status-warning: #efbd54;
+  --status-overdue: #ff928c;
 }
 
 * {
@@ -2807,4 +2815,127 @@ textarea:focus-visible {
 :root[data-theme="dark"] .theme-switch-thumb {
   background: #8dcda3;
   border-color: #a7dcb7;
+}
+
+/* Service shares the journal's type scale, surfaces and four-tab shell. */
+.nav-item { width: min(23vw, 124px); }
+:root[data-theme="dark"] .nav-active:hover { background: var(--nav-active-bg); }
+:root[data-theme="dark"] .theme-switch-thumb { background: #a9bafc; border-color: #c2ceff; }
+:root[data-theme="dark"] .theme-switch-moon { color: #1b2845; }
+:root[data-theme="dark"] .spark-bar { fill: #819bd0; }
+:root[data-theme="dark"] .spark-bar-current { fill: #d0dcff; }
+:root[data-theme="dark"] .price-line { stroke: #b3c5ff; }
+.service-page .page-heading { margin-bottom: 0; }
+.service-mileage { margin: 12px 0 0; color: var(--muted); font-size: 16px; line-height: 1.5; }
+.service-mileage strong { color: var(--ink); white-space: nowrap; font-weight: 650; }
+.service-mileage-source { margin: 4px 0 24px; color: var(--text-tertiary); font-size: 13px; }
+.oil-card { position: relative; padding: 21px; margin: 24px 0 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; }
+.service-card-title { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.service-card-title h2 { flex: 1; margin: 0; font-size: 20px; line-height: 1.35; }
+.service-symbol { flex: 0 0 28px; display: inline-grid; place-items: center; color: var(--green-deep); }
+.service-status { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 650; line-height: 1.4; }
+.status-good { color: var(--status-good); }
+.status-warning { color: var(--status-warning); }
+.status-overdue { color: var(--status-overdue); }
+.oil-progress-area { margin-top: 21px; }
+.oil-track { position: relative; height: 12px; overflow: hidden; background: var(--surface-border); border-radius: 20px; }
+.oil-track-fill { display: block; height: 100%; background: currentColor; border-radius: inherit; }
+.oil-recommendation-mark { position: absolute; top: 0; bottom: 0; left: 83.333%; border-left: 2px solid var(--ink); opacity: .55; }
+.oil-distance { display: flex; justify-content: space-between; gap: 15px; margin: 12px 0 20px; }
+.oil-distance > div:last-child { text-align: right; }
+.oil-distance strong { display: block; font-size: 21px; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
+.oil-distance small { display: block; margin-top: 4px; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.service-date-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; border-top: 1px solid var(--line); padding-top: 18px; margin-top: 18px; }
+.service-date-pair > div + div { border-left: 1px solid var(--line); padding-left: 16px; }
+.service-date-pair small, .service-date-pair span { display: block; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.service-date-pair strong { display: block; font-size: 15px; font-weight: 620; line-height: 1.5; margin: 4px 0; }
+.service-policy, .service-hint { color: var(--muted); font-size: 13px; line-height: 1.65; margin: 16px 0; }
+.service-card-actions { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding-top: 16px; margin-top: 18px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.service-card-actions .text-button { font-size: 13px; padding: 6px 0; }
+.service-check { display: flex; align-items: center; gap: 9px; min-height: 42px; font-size: 15px; cursor: pointer; }
+.service-check input { width: 20px; height: 20px; margin: 0; flex-shrink: 0; accent-color: var(--green); }
+.service-check small { display: block; font-size: 11px; margin-top: 3px; color: var(--muted); }
+.service-list { display: grid; gap: 10px; }
+.service-row { display: flex; align-items: center; gap: 14px; padding: 19px 20px; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 17px; cursor: pointer; }
+.service-row > span:nth-child(2) { flex: 1; min-width: 0; }
+.service-row strong, .filter-row strong { display: block; font-size: 17px; font-weight: 650; line-height: 1.4; }
+.service-row small, .filter-row small { display: block; font-size: 13px; line-height: 1.5; color: var(--muted); margin-top: 4px; }
+.service-row > svg, .filter-row > svg { flex-shrink: 0; color: var(--muted); }
+.service-row:hover, .filter-row:hover { background: var(--surface-hover); }
+.service-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.service-dot.status-neutral { color: var(--text-tertiary); opacity: .4; }
+.chevron-open { transform: rotate(180deg); }
+.filter-list { margin: 0 0 4px 14px; padding-left: 14px; border-left: 2px solid var(--line); }
+.filter-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 16px 5px; text-align: left; background: none; border: none; border-bottom: 1px solid var(--line); cursor: pointer; }
+.filter-row > span:first-child { flex: 1; min-width: 0; }
+.filter-row strong { font-size: 15px; }
+.filter-row .service-status { font-size: 11px; max-width: 100px; }
+.add-service-button { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--green-deep); background: transparent; border: 1px solid var(--green); border-radius: 15px; padding: 15px 20px; margin: 18px 0 26px; font-size: 16px; font-weight: 600; cursor: pointer; }
+.add-service-button:hover { background: var(--green-soft); }
+.push-settings { display: flex; align-items: center; gap: 12px; padding: 16px 0; border-top: 1px solid var(--line); }
+.push-settings > div { flex: 1; min-width: 0; }
+.push-settings strong { font-size: 14px; font-weight: 600; }
+.push-settings p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.push-settings .text-button { font-size: 12px; flex-shrink: 0; }
+.service-dialog { padding: 24px; }
+.service-dialog-header { display: flex; align-items: center; gap: 15px; justify-content: space-between; margin-bottom: 18px; }
+.service-dialog-header h2 { font-size: 22px; line-height: 1.4; margin: 0; }
+.service-form { display: grid; gap: 18px; }
+.service-form-caption { color: var(--muted); margin: -6px 0 24px; }
+.service-form .field-label { font-size: 15px; }
+.service-form input, .service-form textarea { font-size: 16px; min-width: 0; }
+.service-form .service-hint { margin: 0; }
+.service-detail-actions { display: grid; gap: 10px; margin: 20px 0; }
+.service-history-title { margin: 28px 0 12px; font-size: 17px; }
+.service-history { padding: 0; margin: 0; list-style: none; }
+.service-history li { display: flex; align-items: center; gap: 5px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.service-history li > div { flex: 1; min-width: 0; }
+.service-history strong { display: block; font-size: 15px; }
+.service-history span, .service-history p { display: block; margin: 6px 0 0; font-size: 13px; color: var(--muted); line-height: 1.5; overflow-wrap: anywhere; }
+@media (min-width: 561px) {
+  .oil-card { padding: 26px; }
+  .oil-distance strong { font-size: 25px; }
+  .service-dialog { padding: 28px; }
+}
+@media (max-width: 365px) {
+  .service-row { padding: 17px 14px; gap: 10px; }
+  .oil-card { padding: 17px; }
+  .oil-distance strong { font-size: 19px; }
+  .service-card-actions { gap: 4px; }
+  .service-date-pair { gap: 10px; }
+  .service-date-pair > div + div { padding-left: 10px; }
+}
+
+.bottom-nav { --nav-pill-width: min(23vw, 124px); isolation: isolate; }
+.bottom-nav::before { content: ""; position: absolute; z-index: -1; left: calc(50% - 2 * var(--nav-pill-width) + var(--active-tab-index, 0) * var(--nav-pill-width)); top: 7px; width: var(--nav-pill-width); height: 55px; border-radius: 15px; background: var(--nav-active-bg); box-shadow: 0 3px 9px rgb(25 35 70 / 12%); transition: left 240ms cubic-bezier(.22,.75,.25,1), background-color 180ms ease; }
+.nav-item { position: relative; transition: color 180ms ease; }
+.nav-active, .nav-active:hover, :root[data-theme="dark"] .nav-active:hover { background: transparent; box-shadow: none; }
+.tab-content { animation: fuel-tab-enter 180ms ease-out both; }
+@keyframes fuel-tab-enter { from { opacity: .55; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .bottom-nav::before, .nav-item { transition: none; } .tab-content { animation: none; } }
+.service-dialog .button-primary, .service-dialog .button-secondary, .service-dialog .button-danger { min-height: 46px; font-size: 14px; }
+@media (max-width: 560px) { .bottom-nav::before { height: 57px; } }
+.oil-card { padding: 18px; }
+.service-card-title { margin-bottom: 8px; }
+.service-card-title h2 { font-weight: 700; }
+.oil-card .oil-progress-area { margin-top: 16px; }
+.oil-card .oil-distance { margin: 10px 0 16px; }
+.oil-card .service-date-pair { margin-top: 0; padding-top: 14px; }
+.oil-card .service-policy { margin: 12px 0 0; font-size: 12px; line-height: 1.6; }
+.oil-card .service-card-actions { margin-top: 12px; padding-top: 10px; }
+.oil-card .service-check { min-height: 36px; }
+/* Preserve the mobile card layout while keeping real table cells on desktop. */
+.fill-date-layout { display: contents; }
+@media (min-width: 561px) {
+  .fuel-table td.fill-date-cell { display: table-cell; }
+  .fill-date-layout { display: grid; grid-template-columns: minmax(0,1fr); align-items: center; gap: 6px; }
+  .date-line time { white-space: nowrap; }
+  .header-amount { grid-column: 1; grid-row: auto; justify-self: start; }
+}
+@media (min-width: 761px) {
+  .fuel-table th:first-child, .fuel-table td:first-child { width: 48%; }
+  .fuel-table th:nth-child(2), .fuel-table td:nth-child(2), .fuel-table th:nth-child(3), .fuel-table td:nth-child(3) { width: 17%; }
+  .fuel-table th:last-child, .fuel-table td:last-child { width: 18%; }
+  .fill-date-layout { grid-template-columns: minmax(0,1fr) auto; gap: 10px; }
+  .header-amount { grid-column: 2; grid-row: 1; justify-self: end; }
 }

@@ -1,6 +1,7 @@
 import { desc, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { fuelEntries } from "@/db/schema";
+import { after } from "next/server";
 
 function errorResponse(error: unknown) {
   console.error("fuel API error", error);
@@ -108,6 +109,7 @@ export async function POST(request: Request) {
         note: note || null,
       })
       .returning();
+    after(async () => { await (await import("@/lib/service-push")).dispatchServiceReminders(); });
     return Response.json({ entry }, { status: 201 });
   } catch (error) {
     return errorResponse(error);

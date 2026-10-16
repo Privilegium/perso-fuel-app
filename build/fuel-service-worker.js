@@ -67,16 +67,19 @@ self.addEventListener("fetch", event => {
       const response = await fetch(request);
       if (response.status === 401 || response.status === 403 || response.redirected || (response.ok && response.headers.get("content-type")?.includes("text/html"))) {
         await clearPrivateCaches();
-      } else if (request.method !== "GET" && response.ok) {
+      } else if (request.method !== "GET" && response.ok && url.pathname.startsWith("/api/fuel")) {
         await caches.delete(JOURNAL);
         await broadcast("FUEL_JOURNAL_CHANGED", event.clientId);
+      } else if (request.method !== "GET" && response.ok && url.pathname === "/api/service") {
+        await caches.delete("fuel-log-service-v1");
+        await broadcast("FUEL_SERVICE_CHANGED", event.clientId);
       }
       return response;
     })());
     return;
   }
   if (request.method !== "GET") return;
-  if (request.mode === "navigate" && url.pathname === "/" && !url.search) {
+  if (request.mode === "navigate" && url.pathname === "/" && (!url.search || url.search === "?tab=service")) {
     event.respondWith((async () => {
       const cached = await (await caches.open(SHELL)).match(ROOT);
       if (cached) return cached;
@@ -101,4 +104,27 @@ self.addEventListener("fetch", event => {
       return response;
     })());
   }
+});
+
+self.addEventListener("push", event => {
+  let data;
+  try { data = event.data?.json(); } catch { /* Fall back to a safe visible notice. */ }
+  const title = typeof data?.title === "string" ? data.title : "Моє пальне · Сервіс";
+  event.waitUntil(self.registration.showNotification(title, {
+    body: typeof data?.body === "string" ? data.body : "Відкрийте сервіс, щоб перевірити нагадування.",
+    icon: "/icon-192.png", badge: "/icon-192.png",
+    tag: typeof data?.tag === "string" ? data.tag : "service-reminder",
+    data: { url: "/?tab=service" },
+  }));
+});
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const existing = windows.find(client => new URL(client.url).origin === self.location.origin);
+    if (existing) {
+      existing.postMessage({ type: "FUEL_OPEN_SERVICE" });
+      await existing.focus();
+    } else await self.clients.openWindow("/?tab=service");
+  })());
 });
