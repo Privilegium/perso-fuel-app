@@ -28,6 +28,7 @@ function mercator(lat: number, lon: number, zoom: number) {
 }
 
 function fittingZoom(points: MapEntry[], width: number, height: number) {
+  if (points.length === 0) return 3;
   if (points.length === 1) return 14;
   const normalized = points.map((point) => {
     const value = mercator(point.latitude!, point.longitude!, 0);
@@ -61,7 +62,7 @@ export default function FuelMap({
 }) {
   const host = useRef<HTMLDivElement>(null);
   const drag = useRef<{ pointerId: number; x: number; y: number; panX: number; panY: number } | null>(null);
-  const [size, setSize] = useState({ width: 640, height: 360 });
+  const [size, setSize] = useState({ width: 0, height: 0 });
   const [zoomOffset, setZoomOffset] = useState(0);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -75,7 +76,8 @@ export default function FuelMap({
     const observer = new ResizeObserver((items) => {
       const rect = items[0]?.contentRect;
       if (rect && rect.width > 0 && rect.height > 0) {
-        setSize({ width: rect.width, height: rect.height });
+        setSize((current) => current.width === rect.width && current.height === rect.height
+          ? current : { width: rect.width, height: rect.height });
       }
     });
     observer.observe(host.current);
@@ -98,7 +100,7 @@ export default function FuelMap({
   const worldTileCount = Math.pow(2, zoom);
   const tiles: Array<{ key: string; url: string; left: number; top: number }> = [];
 
-  for (let tileY = minY; tileY <= maxY; tileY += 1) {
+  for (let tileY = minY; size.width > 0 && size.height > 0 && tileY <= maxY; tileY += 1) {
     if (tileY < 0 || tileY >= worldTileCount) continue;
     for (let tileX = minX; tileX <= maxX; tileX += 1) {
       const wrappedX = ((tileX % worldTileCount) + worldTileCount) % worldTileCount;
@@ -174,6 +176,9 @@ export default function FuelMap({
               src={tile.url}
               className="map-tile"
               alt=""
+              width={TILE}
+              height={TILE}
+              decoding="async"
               draggable={false}
               style={{ left: tile.left, top: tile.top }}
             />

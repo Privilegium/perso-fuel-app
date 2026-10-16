@@ -12,18 +12,37 @@ function errorResponse(error: unknown) {
   return Response.json({ error: friendly }, { status: 503 });
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const db = getDb();
     const rows = await db
-      .select()
+      .select({
+        id: fuelEntries.id,
+        sourceNotionId: fuelEntries.sourceNotionId,
+        fillDate: fuelEntries.fillDate,
+        unitPrice: fuelEntries.unitPrice,
+        amount: fuelEntries.amount,
+        liters: fuelEntries.liters,
+        odometer: fuelEntries.odometer,
+        latitude: fuelEntries.latitude,
+        longitude: fuelEntries.longitude,
+        locationAccuracy: fuelEntries.locationAccuracy,
+        note: fuelEntries.note,
+      })
       .from(fuelEntries)
       .orderBy(
         sql.raw("case when fill_date is null then 1 else 0 end"),
         desc(fuelEntries.fillDate),
         desc(fuelEntries.createdAt),
       );
-    return Response.json({ entries: rows });
+    const body = JSON.stringify({ entries: rows });
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body));
+    const etag = '"' + Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("") + '"';
+    const headers = { "content-type": "application/json", "cache-control": "private, no-cache", etag, vary: "Cookie" };
+    if (request.headers.get("if-none-match")?.split(",").map((value) => value.trim()).some((value) => value === etag || value === "W/" + etag || value === "*")) {
+      return new Response(null, { status: 304, headers });
+    }
+    return new Response(body, { headers });
   } catch (error) {
     return errorResponse(error);
   }

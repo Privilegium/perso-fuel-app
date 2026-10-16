@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { journalBootstrap } from "@/lib/journal-bootstrap";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -17,9 +18,6 @@ export const metadata: Metadata = {
     title: "Моє пальне",
     statusBarStyle: "black-translucent",
   },
-  other: {
-    "codex-preview": "development",
-  },
   icons: {
     icon: "/fuel-icon.svg",
     shortcut: "/fuel-icon.svg",
@@ -33,9 +31,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="uk" suppressHydrationWarning>
+    <html lang="uk" data-fuel-app="journal" suppressHydrationWarning>
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        <script dangerouslySetInnerHTML={{ __html: journalBootstrap }} />
         <script
           dangerouslySetInnerHTML={{
             __html: `try { const themeDefaultKey = "fuel-log-theme-default-v2"; if (localStorage.getItem(themeDefaultKey) !== "1") { localStorage.setItem("fuel-log-theme", "dark"); localStorage.setItem(themeDefaultKey, "1"); } document.documentElement.dataset.theme = localStorage.getItem("fuel-log-theme") === "light" ? "light" : "dark"; } catch { document.documentElement.dataset.theme = "dark"; } const isDark = document.documentElement.dataset.theme !== "light"; const themeColor = isDark ? "#111913" : "#f5f7f5"; let themeColorMeta = document.querySelector('meta[name="theme-color"]'); if (!themeColorMeta) { themeColorMeta = document.createElement("meta"); themeColorMeta.setAttribute("name", "theme-color"); document.head.appendChild(themeColorMeta); } themeColorMeta.setAttribute("content", themeColor); const statusBarMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]'); if (statusBarMeta) statusBarMeta.setAttribute("content", isDark ? "black-translucent" : "default");`,
