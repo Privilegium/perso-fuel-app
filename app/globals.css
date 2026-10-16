@@ -2939,3 +2939,23 @@ textarea:focus-visible {
   .fill-date-layout { grid-template-columns: minmax(0,1fr) auto; gap: 10px; }
   .header-amount { grid-column: 2; grid-row: 1; justify-self: end; }
 }
+.service-heading { align-items: center; gap: 15px; }
+.service-register-toggle { display: inline-flex; gap: 7px; align-items: center; min-height: 42px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; color: var(--green-deep); background: var(--surface); font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.service-register-toggle[aria-pressed="true"] { background: var(--green-soft); border-color: var(--green); }
+.service-register { padding-top: 10px; margin-bottom: 25px; }
+.service-register .section-heading { align-items: center; }
+.service-register .section-heading h2 { font-size: 21px; }
+.service-register-list li { gap: 8px; }
+.service-register-list .icon-button { width: 32px; flex-shrink: 0; }
+.service-register-list .service-symbol { align-self: flex-start; margin-top: 2px; }
+.service-register-empty { padding: 32px 20px; border: 1px dashed var(--line); border-radius: 18px; text-align: center; }
+.service-register-empty > svg { color: var(--green-deep); }
+.service-register-empty h3 { font-size: 18px; margin: 16px 0 8px; }
+.service-register-empty p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+.service-register-empty .button-primary { margin-top: 10px; font-size: 14px; }
+.service-picker { display: grid; gap: 9px; }
+.service-picker .service-row { padding: 16px; }
+.service-picker .service-row strong { font-size: 16px; }
+.service-action-switch { display: flex; gap: 4px; padding: 4px; background: var(--surface-soft); border: 1px solid var(--line); border-radius: 12px; }
+.service-action-switch button { flex: 1; padding: 10px; border: 0; border-radius: 8px; color: var(--muted); background: none; font-size: 14px; cursor: pointer; }
+.service-action-switch button[aria-pressed="true"] { background: var(--green-soft); color: var(--green-deep); font-weight: 650; }

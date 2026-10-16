@@ -368,6 +368,12 @@ export default function Home() {
   }, [refresh, setTab]);
   useEffect(startPwa, []);
   useEffect(() => {
+    if (loading || loadError || !navigator.onLine || !("Notification" in window) || Notification.permission !== "granted") return;
+    // Recalculate reminders on app launches and fuel/service writes. Only
+    // opted-in services/devices receive a notice; no timer or daily task.
+    void fetch("/api/service/dispatch", { method: "POST" }).catch(() => {});
+  }, [loading, loadError]);
+  useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(""), 2600);
     return () => window.clearTimeout(timer);

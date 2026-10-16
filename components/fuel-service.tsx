@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, BellOff, Check, ChevronDown, ChevronRight, CircleAlert, CircleCheck, Disc3, Droplets, Filter, LoaderCircle, Pencil, Plus, Trash2, Wrench, X } from "lucide-react";
+import { Bell, BellOff, Check, ChevronDown, ChevronRight, CircleAlert, CircleCheck, Disc3, Droplets, Filter, History, LoaderCircle, Pencil, Plus, Trash2, Wrench, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FuelEntry } from "@/lib/fuel-types";
 import { integer, dateForDisplay } from "@/lib/fuel-format";
@@ -74,13 +74,16 @@ function RecordForm({ draft, onClose, onSave, busy, error }: { draft: RecordDraf
   const [odometer, setOdometer] = useState(draft.record?.odometer?.toString() ?? "");
   const [note, setNote] = useState(draft.record?.note ?? "");
   const [checked, setChecked] = useState(!!draft.record);
-  return <Modal title={draft.action === "inspection" ? "Записати перевірку" : draft.record ? "Редагувати запис" : "Записати заміну"} onClose={onClose}>
+  const [recordAction, setRecordAction] = useState(draft.action);
+  const canInspect = ["wipers", "inspection", "custom"].includes(draft.item.kind);
+  return <Modal title={recordAction === "inspection" ? "Записати перевірку" : draft.record ? "Редагувати запис" : "Записати заміну"} onClose={onClose}>
     <p className="service-form-caption">{draft.item.title}</p>
-    <form className="service-form" onSubmit={async event => { event.preventDefault(); if (await onSave({ action: "record", id, serviceId: draft.item.id, performedOn: date, odometer: odometer === "" ? null : Number(odometer), recordAction: draft.action, note })) onClose(); }}>
+    <form className="service-form" onSubmit={async event => { event.preventDefault(); if (await onSave({ action: "record", id, serviceId: draft.item.id, performedOn: date, odometer: odometer === "" ? null : Number(odometer), recordAction, note })) onClose(); }}>
+      {canInspect ? <div className="service-action-switch" role="group" aria-label="Тип роботи"><button type="button" aria-pressed={recordAction === "replacement"} onClick={() => setRecordAction("replacement")}>{["wipers", "inspection"].includes(draft.item.kind) ? "Встановлення" : "Заміна"}</button><button type="button" aria-pressed={recordAction === "inspection"} onClick={() => { setRecordAction("inspection"); setChecked(false); }}>Перевірка</button></div> : null}
       <label className="field-label">Дата<input className="plain-input" type="date" required max={localDay()} value={date} onChange={event => setDate(event.target.value)} /></label>
       <label className="field-label">Пробіг, км <small>Для розрахунку кілометрів до наступної заміни</small><input className="plain-input" type="number" inputMode="numeric" min="0" max="10000000" step="1" placeholder="Необов’язково" value={odometer} onChange={event => setOdometer(event.target.value)} /></label>
       <label className="field-label">Примітка<textarea className="note-input" maxLength={500} placeholder="Масло, деталі, майстерня…" value={note} onChange={event => setNote(event.target.value)} /></label>
-      {draft.action === "inspection" ? <label className="service-check"><input type="checkbox" required checked={checked} onChange={event => setChecked(event.target.checked)} />Перевірка пройдена</label> : null}
+      {recordAction === "inspection" ? <label className="service-check"><input type="checkbox" required checked={checked} onChange={event => setChecked(event.target.checked)} />Перевірка пройдена</label> : null}
       {draft.item.id === "oil" ? <p className="service-hint">Масляний фільтр буде оновлено разом із маслом.</p> : null}
       {error ? <p role="alert" className="form-error">{error}</p> : null}
       <footer className="dialog-actions"><button type="button" className="button-secondary" onClick={onClose} disabled={busy}>Скасувати</button><button className="button-primary" disabled={busy}>{busy ? <LoaderCircle className="spin" size={18} /> : <Check size={18} />}Зберегти</button></footer>
@@ -112,6 +115,9 @@ export default function FuelService({ entries, journalLoading }: { entries: Fuel
   const [selected, setSelected] = useState<string | null>(null);
   const [draft, setDraft] = useState<RecordDraft | null>(null);
   const [creating, setCreating] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
+  const [pickingService, setPickingService] = useState(false);
+  const [, setCalendarDay] = useState(localDay);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [pushReady, setPushReady] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
@@ -124,6 +130,7 @@ export default function FuelService({ entries, journalLoading }: { entries: Fuel
   const closeDraft = useCallback(() => { if (!saving.current) { setDraft(null); setError(""); } }, []);
   const closeCreate = useCallback(() => { if (!saving.current) { setCreating(false); setError(""); } }, []);
   const closeDetail = useCallback(() => { if (!saving.current) { setSelected(null); setDeleting(null); setError(""); } }, []);
+  const closePicker = useCallback(() => setPickingService(false), []);
 
   const refresh = useCallback(async (signal?: AbortSignal) => {
     const id = ++requestId.current;
@@ -150,15 +157,18 @@ export default function FuelService({ entries, journalLoading }: { entries: Fuel
       if (alive) void refresh(controller.signal);
     })();
     const online = () => { if (!document.hidden) void refresh(controller.signal); };
+    const visible = () => { if (!document.hidden) setCalendarDay(localDay()); };
     const message = (event: MessageEvent) => {
       if (event.data?.type === "FUEL_SERVICE_CHANGED") online();
       if (event.data?.type === "FUEL_SESSION_CLEARED") { requestId.current++; setData(null); setSettled(true); setError("Увійдіть знову, щоб переглянути сервіс."); }
     };
     window.addEventListener("online", online);
+    window.addEventListener("pageshow", visible);
+    document.addEventListener("visibilitychange", visible);
     navigator.serviceWorker?.addEventListener("message", message);
     void fetch("/api/service/push", { signal: controller.signal }).then(response => response.json()).then(value => { const config = value as { configured?: boolean; publicKey?: string }; if (alive) setPublicKey(config.configured && typeof config.publicKey === "string" ? config.publicKey : null); }).catch(() => {});
     void navigator.serviceWorker?.getRegistration().then(reg => reg?.pushManager?.getSubscription()).then(sub => { if (alive) setPushReady(!!sub && Notification.permission === "granted"); }).catch(() => {});
-    return () => { alive = false; controller.abort(); window.removeEventListener("online", online); navigator.serviceWorker?.removeEventListener("message", message); };
+    return () => { alive = false; controller.abort(); window.removeEventListener("online", online); window.removeEventListener("pageshow", visible); document.removeEventListener("visibilitychange", visible); navigator.serviceWorker?.removeEventListener("message", message); };
   }, [refresh]);
   const mutate = useCallback(async (payload: Record<string, unknown>) => {
     if (saving.current) return false;
@@ -169,7 +179,7 @@ export default function FuelService({ entries, journalLoading }: { entries: Fuel
       const result = await response.json();
       if (!response.ok || !validData(result)) throw new Error(typeof (result as { error?: unknown })?.error === "string" ? (result as { error: string }).error : "Не вдалося зберегти сервіс.");
       setData(result); void saveSnapshot(result);
-      // Mileage notices also run as soon as the app is opened/saved, in addition to the daily task.
+      // Saving is a recalculation event; persisted delivery keys prevent duplicates.
       void fetch("/api/service/dispatch", { method: "POST" }).catch(() => {});
       return true;
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Не вдалося зберегти. Перевірте інтернет."); return false; }
@@ -218,10 +228,20 @@ export default function FuelService({ entries, journalLoading }: { entries: Fuel
   const reminderControl = (item: ServiceItem) => <label className="service-check reminder-check"><input type="checkbox" checked={item.reminders} disabled={busy} onChange={event => void mutate({ action: "reminders", serviceId: item.id, enabled: event.target.checked })} /><Bell size={16} /><span>Нагадувати{!pushReady && item.reminders ? <small>У застосунку · push не ввімкнено</small> : null}</span></label>;
   return <section className="service-page">
     {settled && !journalLoading ? <LaunchReady /> : null}
-    <div className="page-heading"><div><h1>Сервіс</h1><p className="service-mileage">Поточний пробіг <strong>{mileage == null ? "—" : integer.format(mileage) + " км"}</strong></p></div></div>
+    <div className="page-heading service-heading"><div><h1>Сервіс</h1></div><button className="service-register-toggle" aria-pressed={showRegister} onClick={() => setShowRegister(!showRegister)}><History size={17} />{showRegister ? "Стан сервісу" : "Журнал робіт"}</button></div>
+    <p className="service-mileage">Поточний пробіг <strong>{mileage == null ? "—" : integer.format(mileage) + " км"}</strong></p>
     {mileageEntry?.fillDate ? <p className="service-mileage-source">Із заправки за {dateForDisplay(mileageEntry.fillDate)}</p> : null}
     {error && !draft && !creating && !selected ? <div className="error-panel" role="alert"><CircleAlert size={18} /><span>{error}{data ? " Показано збережені дані." : ""}</span><button className="text-button" onClick={() => void refresh()}>Повторити</button></div> : null}
     {!settled ? <div className="loading-state"><LoaderCircle className="spin" size={20} />Завантажую сервіс…</div> : data ? <>
+      {showRegister ? <section className="service-register">
+        <div className="section-heading"><div><h2>Журнал робіт</h2><p>{records.length} записів</p></div><button className="text-button" onClick={() => setPickingService(true)}><Plus size={17} />Додати роботу</button></div>
+        <p className="service-hint">Додавайте виконані заміни й перевірки, зокрема минулі. Останній за датою запис задає початок наступного інтервалу.</p>
+        {records.length ? <ul className="service-history service-register-list">{records.map(record => {
+          const item = items.find(value => value.id === record.serviceId);
+          if (!item) return null;
+          return <li key={record.id}><span className="service-symbol"><ServiceIcon item={item} /></span><div><strong>{item.kind === "oil" ? "Масло та масляний фільтр" : item.title}</strong><span>{dateForDisplay(record.performedOn)} · {record.action === "inspection" ? "Перевірка" : "Заміна"}{record.odometer != null ? ` · ${integer.format(record.odometer)} км` : ""}</span>{record.note ? <p>{record.note}</p> : null}</div><button className="icon-button" aria-label={"Редагувати роботу: " + item.title} onClick={() => openRecord(item, record.action, record)}><Pencil size={17} /></button><button className="icon-button" aria-label={"Видалити роботу: " + item.title} onClick={() => { setSelected(item.id); setDeleting(record.id); }}><Trash2 size={17} /></button></li>;
+        })}</ul> : <div className="service-register-empty"><History size={30} /><h3>Додайте першу виконану роботу</h3><p>Дата, пробіг на момент роботи та примітка збережуться в цьому реєстрі.</p><button className="button-primary" onClick={() => setPickingService(true)}><Plus size={18} />Додати роботу</button></div>}
+      </section> : <>
       <article className="oil-card">
         <div className="service-card-title"><span className="service-symbol"><ServiceIcon item={oil} /></span><h2>{oil.title}</h2><button className="icon-button" aria-label="Історія заміни масла" onClick={() => setSelected("oil")}><ChevronRight size={21} /></button></div>
         <ServiceSummary item={oil} records={records} mileage={mileage} />
@@ -233,7 +253,8 @@ export default function FuelService({ entries, journalLoading }: { entries: Fuel
         {items.filter(item => !["oil", "oil-filter", "air-filter", "cabin-filter", "fuel-filter"].includes(item.id)).map(item => <button key={item.id} className="service-row" onClick={() => setSelected(item.id)}><span className="service-symbol"><ServiceIcon item={item} /></span><span><strong>{item.title}</strong><small>{recordsFor(item, records).length ? serviceStatus(item, records, mileage).label : "Додайте перший запис"}</small></span><span className={"service-dot status-" + serviceStatus(item, records, mileage).level} /><ChevronRight size={20} /></button>)}
       </div>
       <button className="add-service-button" onClick={() => { setError(""); setCreating(true); }}><Plus size={20} />Додати сервіс</button>
-      <div className="push-settings"><span className="service-symbol">{pushReady ? <Bell size={21} /> : <BellOff size={21} />}</span><div><strong>Сповіщення на пристрої</strong><p>{pushReady ? "Увімкнено · перевіряємо щодня та після записів" : "Нагадаємо, навіть коли застосунок закритий"}</p></div><button className="text-button" disabled={pushBusy} onClick={() => void (pushReady ? disablePush() : enablePush())}>{pushBusy ? <LoaderCircle className="spin" size={18} /> : pushReady ? "Вимкнути" : "Увімкнути"}</button></div>
+      </>}
+      <div className="push-settings"><span className="service-symbol">{pushReady ? <Bell size={21} /> : <BellOff size={21} />}</span><div><strong>Сповіщення на пристрої</strong><p>{pushReady ? "Увімкнено · перевірка при відкритті та після записів" : "Для сервісів, де ви ввімкнули нагадування"}</p></div><button className="text-button" disabled={pushBusy} onClick={() => void (pushReady ? disablePush() : enablePush())}>{pushBusy ? <LoaderCircle className="spin" size={18} /> : pushReady ? "Вимкнути" : "Увімкнути"}</button></div>
       {pushInfo ? <p className="service-hint" role="status">{pushInfo}</p> : null}
     </> : null}
     {selectedItem && !draft ? <Modal title={selectedItem.title} onClose={closeDetail}>
@@ -248,5 +269,6 @@ export default function FuelService({ entries, journalLoading }: { entries: Fuel
     </Modal> : null}
     {draft ? <RecordForm key={draft.record?.id ?? draft.item.id + draft.action} draft={draft} onClose={closeDraft} onSave={mutate} busy={busy} error={error} /> : null}
     {creating ? <CreateService onClose={closeCreate} onSave={mutate} busy={busy} error={error} /> : null}
+    {pickingService ? <Modal title="Додати виконану роботу" onClose={closePicker}><p className="service-hint">Оберіть сервіс, потім укажіть дату й пробіг на момент роботи.</p><div className="service-picker">{items.filter(item => item.kind !== "oil-filter").map(item => <button className="service-row" key={item.id} onClick={() => { setPickingService(false); openRecord(item, "replacement"); }}><span className="service-symbol"><ServiceIcon item={item} /></span><span><strong>{item.title}</strong></span><ChevronRight size={18} /></button>)}</div></Modal> : null}
   </section>;
 }
